@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html style="height: 100vh;">
+    <head>
+        <title>Activity Intensity Duration Vis</title>
+        <meta charset="UTF-8">
+        <link rel="icon" href="images/favicon-32x32.png">
+        <link rel="stylesheet" href="styles.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=SN+Pro:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
+    </head>
+    <body style="margin: 0; min-height: 100vh;">
+        <div class="column">
+            <h1 style="text-align: center; margin-bottom: 0;">Activity Intensity Duration Visualizer</h1>
+            <p>
+            </p>
+        </div>
+
+        <div id="visualization-container" class="visualization-container" first-render="true">
+            <svg id="visualization" class="visualization"></svg>
+        </div>
+        
+        <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js "></script>
+        <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+        <script src="https://d3js.org/d3.v7.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/2.4.3/seedrandom.min.js"></script>
+        <script src="main.js"></script>
+    </body>
+</html>
