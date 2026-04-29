@@ -13,17 +13,25 @@
         <div class="column">
             <h1 style="text-align: center; margin-bottom: 0;">Activity Intensity Duration Visualizer</h1>
             <p>
+                A tool to produce sharable visualizations of activity data that don't require
+                routes, instead using the duration and intensity of the activity. Don't worry, 
+                we don't store any of your data, everything is done locally in the browser.
             </p>
         </div>
 
-        <div id="visualization-container" class="visualization-container" first-render="true">
+        <div class="column" style="display: none" id="activity-container">
+            <p>Your 10 most recent activities:</p>
+            <div id="activities"></div>
+        </div>
+
+        <div id="visualization-container" class="visualization-container column" style="display: none">
+            <div class="button" id="back-button"><p class="name" style="padding-top: 1%; padding-bottom: 1%;">Return to activities</p></div>
+            <div class="button" id="download-button"><p class="name" style="padding-top: 1%; padding-bottom: 1%;">Download as PNG</p></div>
             <svg id="visualization" class="visualization"></svg>
         </div>
         
         <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js "></script>
-        <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
         <script src="https://d3js.org/d3.v7.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/2.4.3/seedrandom.min.js"></script>
         <script src="main.js"></script>
     </body>
 </html>
