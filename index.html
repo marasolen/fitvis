@@ -20,18 +20,97 @@
         </div>
 
         <div class="column" style="display: none" id="activity-container">
-            <p>Your 10 most recent activities:</p>
+            <p>Your activities</p>
             <div id="activities"></div>
+            <div class="button" id="more-button"><p class="name" style="padding-top: 1%; padding-bottom: 1%;">Load more activities</p></div>
         </div>
 
         <div id="visualization-container" class="visualization-container column" style="display: none">
             <div class="button" id="back-button"><p class="name" style="padding-top: 1%; padding-bottom: 1%;">Return to activities</p></div>
             <div class="button" id="download-button"><p class="name" style="padding-top: 1%; padding-bottom: 1%;">Download as PNG</p></div>
+            <div class="form">
+                <p>Colour scheme</p>
+                <div>
+                    <input type="radio" id="strava" name="colour_scheme" value="strava">
+                    <label for="strava">Strava</label><br>
+                </div>
+                <div>
+                    <input type="radio" id="greyscale" name="colour_scheme" value="greyscale">
+                    <label for="greyscale">Greyscale</label><br>
+                </div>
+                <div>
+                    <input type="radio" id="traffic" name="colour_scheme" value="traffic">
+                    <label for="traffic">Traffic</label><br>
+                </div>
+
+                <p>Details (if available)</p>
+                <div>
+                    <input type="checkbox" id="name" name="metrics" value="name">
+                    <label for="name">Activity name</label><br>
+                </div>
+                <div>
+                    <input type="checkbox" id="sport" name="metrics" value="sport">
+                    <label for="sport">Sport type</label><br>
+                </div>
+                <div>
+                    <input type="checkbox" id="distance" name="metrics" value="distance">
+                    <label for="distance">Distance</label><br>
+                </div>
+
+                <div></div>
+                <div>
+                    <input type="checkbox" id="time" name="metrics" value="time">
+                    <label for="time">Moving Time</label><br>
+                </div>
+                <div>
+                    <input type="checkbox" id="pace" name="metrics" value="pace">
+                    <label for="pace">Average speed</label><br>
+                </div>
+                <div>
+                    <input type="checkbox" id="heartrate" name="metrics" value="heartrate">
+                    <label for="heartrate">Average heartrate</label><br>
+                </div>
+
+                <p>Map (if available)</p>
+                <div>
+                    <input type="radio" id="hide" name="map" value="hide">
+                    <label for="hide">Hide map</label><br>
+                </div>
+                <div>
+                    <input type="radio" id="show" name="map" value="show">
+                    <label for="show">Show map</label><br>
+                </div>
+                <div></div>
+                
+                <p>Time markers</p>
+                <div>
+                    <input type="checkbox" id="start" name="time" value="start">
+                    <label for="start">Start time</label><br>
+                </div>
+                <div>
+                    <input type="checkbox" id="end" name="time" value="end">
+                    <label for="end">End time</label><br>
+                </div>
+                <div></div>
+                
+                <p>Background</p>
+                <div>
+                    <input type="radio" id="transparent" name="background" value="transparent">
+                    <label for="transparent">Transparent</label><br>
+                </div>
+                <div>
+                    <input type="radio" id="white" name="background" value="white">
+                    <label for="white">White</label><br>
+                </div>
+                <div></div>
+            </div>
             <svg id="visualization" class="visualization"></svg>
         </div>
         
         <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js "></script>
         <script src="https://d3js.org/d3.v7.min.js"></script>
+        <script src="save-svg-as-png.js"></script>
+        <script src="font.js"></script>
         <script src="main.js"></script>
     </body>
 </html>

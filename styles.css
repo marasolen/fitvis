@@ -4,7 +4,7 @@ body {
     font-weight: 400;
     font-style: normal;
     color: #000000;
-    background-color: #ffffff;
+    background-color: #f9f8f7;
 }
 
 .visualization-container {
@@ -64,6 +64,21 @@ p.name {
 
 p.date {
     font-size: small;
+}
+
+.form {
+    display: grid;
+    grid-template-columns: 30% auto auto auto;
+}
+
+.form p {
+    font-weight: bold;
+    padding-bottom: 5%;
+}
+
+.form div {
+    padding-top: 1%;
+    padding-bottom: 5%;
 }
 
 @media screen and (max-width: 2000px) {

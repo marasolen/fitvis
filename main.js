@@ -1,9 +1,61 @@
 const clientId = "228615";
 const clientSecret = "e9fc0f6460040aeb1e3b75290cc9593670151f6f";
 
-const potentialStreams = ["heartrate", "cadence", "velocity_smooth"];
+const intensityStreams = ["heartrate", "cadence", "velocity_smooth"];
+const otherStreams = ["latlng", "time"];
 
 let authCode, refreshCode, accessCode, accessCodeExpiryDate;
+
+let page = 1;
+let activities = [];
+let settings = "s__h__t";
+
+let savedActivity;
+let savedStream;
+let savedFlow;
+
+const getSetting = (setting) => {
+    let value = "";
+    const options = $(`input[name="${setting}"]`);
+    for (let i = 0; i < options.length; i++) {
+        if (options[i].checked === true) {
+            value += options[i].value[0];
+        }
+    }
+    return value;
+};
+
+const updateSettings = () => {
+    const newSettings = ["colour_scheme", "metrics", "map", "time", "background"].map(getSetting);
+    settings = newSettings.join("_");
+    document.cookie = `settings=${settings}; expires=${new Date((new Date()).setMonth((new Date()).getMonth() + 12))}`;
+    visualizeActivityStream(savedFlow);
+};
+
+const setupSetting = (setting, selection) => {
+    const options = $(`input[name="${setting}"]`);
+    for (let i = 0; i < options.length; i++) {
+        if (selection.includes(options[i].value[0])) {
+            options[i].checked = true;
+        }
+    }
+};
+
+const setupSettings = () => {
+    let [colours, metrics, map, times, background] = settings.split("_");
+
+    [colours, map, background].forEach(list => {
+        list = list[0];
+    });
+
+    [
+        ["colour_scheme", colours],
+        ["metrics", metrics], 
+        ["map", map], 
+        ["time", times], 
+        ["background", background]
+    ].forEach(([setting, selection]) => setupSetting(setting, selection));
+};
 
 const authenticate = () => {
     const thisPage = window.location.origin + window.location.pathname;
@@ -16,9 +68,9 @@ const authenticate = () => {
 };
 
 const clearCodes = () => {
-    document.cookie = `accessCode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-    document.cookie = `accessCodeExpiryDate=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-    document.cookie = `refreshCode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    document.cookie = `accessCode=; expires=Thu, 01 Jan 1970 00:00:00 UTC;`;
+    document.cookie = `accessCodeExpiryDate=; expires=Thu, 01 Jan 1970 00:00:00 UTC;`;
+    document.cookie = `refreshCode=; expires=Thu, 01 Jan 1970 00:00:00 UTC;`;
 };
 
 const saveCodes = () => {
@@ -31,7 +83,7 @@ const distance = (data, attributes, index, centroid) => {
     return Math.sqrt(d3.sum(attributes, a => Math.pow(data[a].data[index] - centroid[a], 2)));
 };
 
-const kmeans = (data, attributes) => {
+const kmeans = (data, attributes, saveAttributes) => {
     const numPoints = data[attributes[0]].data.length;
 
     let centroids = [0, Math.floor(numPoints / 3), Math.floor(2 * numPoints / 3)].map(i => {
@@ -41,13 +93,15 @@ const kmeans = (data, attributes) => {
     });
     let converged = false;
     let clusters;
+    let iterations = 100;
 
-    while (!converged) {
+    while (!converged && iterations > 0) {
         clusters = [[], [], []];
 
         for (let i = 0; i < numPoints; i++) {
             const point = { index: i };
             attributes.forEach(a => point[a] = data[a].data[i]);
+            otherStreams.filter(s => s in data).forEach(a => point[a] = data[a].data[i]);
 
             let closestIndex = 0;
             let minDistance = distance(data, attributes, i, centroids[0]);
@@ -91,13 +145,220 @@ const kmeans = (data, attributes) => {
         } else {
             centroids = newCentroids;
         }
+
+        iterations--;
     }
 
     return clusters;
 };
 
-const visualizeActivityStream = (data, startDateTime, duration) => {
-    const streams = potentialStreams.filter(s => s in data);
+const visualizeActivityStream = (flow) => {
+    d3.selectAll("#visualization > *").remove();
+
+    const [colours, metrics, map, times, background] = settings.split("_");
+
+    const width = document.getElementById("visualization").clientWidth;
+    const angleStep = 2 * Math.PI / (60 * 60);
+    const start = new Date(savedActivity.start_date);
+    const startTime = start.getMinutes() + (start.getSeconds() / 60) + (start.getMilliseconds() / 1000);
+    const startAngle = 2 * Math.PI * startTime / 60; 
+    const radiusStep = flow[flow.length - 1].time > 3600 ? width * 0.06 : 0;
+    const svg = d3.select("#visualization")
+        .attr("viewBox", `0 0 ${width} ${width}`)
+        .attr("xmlns", "http://www.w3.org/2000/svg")
+        .attr("xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+    svg.append("defs")
+        .append('style')
+        .attr("type", "text/css")
+        .text(`@font-face { font-family: 'Custom Font'; src: url('${font}'); }`);
+
+    const colourMaps = {
+        s: {
+            "low": "#fcccb8",
+            "medium": "#fca079",
+            "high": "#FC4C02"
+        },
+        g: {
+            "low": "#aaaaaa",
+            "medium": "#555555",
+            "high": "#000000"
+        },
+        t: {
+            "low": "#33a02c",
+            "medium": "#F1D302",
+            "high": "#F8333C"
+        }
+    };
+
+    if (background === "w") {
+        svg.append("rect")
+            .attr("width", width)
+            .attr("height", width)
+            .attr("rx", width / 10)
+            .attr("ry", width / 10)
+            .attr("fill", "white");
+    }
+
+    if (map === "s" && "latlng" in flow[0]) {
+        const mapX = d => d.latlng[0];
+        const mapY = d => d.latlng[1];
+
+        const xExtent = d3.extent(flow, mapX);
+        const yExtent = d3.extent(flow, mapY);
+
+        const centerX = (xExtent[1] + xExtent[0]) / 2;
+        const centerY = (yExtent[1] + yExtent[0]) / 2;
+        const range = d3.max([xExtent[1] - xExtent[0], yExtent[1] - yExtent[0]]);
+
+        const mapXScale = d3.scaleLinear().domain([centerX - range / 2, centerX + range / 2]).range([0, width / 3]);
+        const mapYScale = d3.scaleLinear().domain([centerY - range / 2, centerY + range / 2]).range([0, width / 3]);
+    
+        svg.selectAll("path.map")
+            .data([flow])
+            .join("path")
+            .attr("class", "map")
+            .attr("stroke-opacity", metrics.length > 0 ? 0.25 : 1)
+            .attr("stroke", colourMaps[colours]["high"])
+            .attr("stroke-width", width / 100)
+            .attr("fill", "none")
+            .attr("d", d => {
+                return d3.line()
+                    .x(p => mapXScale(mapX(p)))
+                    .y(p => mapYScale(mapY(p)))
+                    (d);
+            })
+            .attr("transform", `translate(${width / 3}, ${ 2 * width / 3}) rotate(-90)`);
+    }
+
+    const thicknessMap = {
+        "low": 0.01,
+        "medium": 0.02,
+        "high": 0.03
+    };
+    
+    svg.selectAll("path.intensity")
+        .data(flow)
+        .join("path")
+        .attr("class", "intensity")
+        .attr("transform", `translate(${width / 2}, ${width / 2})`)
+        .attr("fill", d => colourMaps[colours][d.value])
+        .attr("d", d => {
+            const angle = startAngle + d.time * angleStep;
+            const halfThickness = thicknessMap[d.value] / 2;
+            return d3.arc()({
+                innerRadius: width * (0.39 - halfThickness) - radiusStep * ((angle - startAngle) / (2 * Math.PI)),
+                outerRadius: width * (0.39 + halfThickness) - radiusStep * ((angle - startAngle) / (2 * Math.PI)),
+                startAngle: angle,
+                endAngle: angle + 1.1 * angleStep * (d.timeStep > (5 * flow[flow.length - 1].time / flow.length) ? 1 : d.timeStep)
+            });
+        });
+
+    if (times.length > 0) {
+        let timeLabels = [];
+        const defs = svg.append("defs");
+        if (times.includes("s")) {
+            const timeLabel = {
+                label: start.getHours() + ":" + String(start.getMinutes()).padStart(2, "0"),
+                angle: startAngle - Math.PI / 2 - Math.PI / 30,
+                radius: width * 0.40,
+            };
+
+            timeLabels.push(timeLabel);
+        }
+        if (times.includes("e")) {
+            const endDateTime = new Date(start.getTime() + flow[flow.length - 1].time * 1000);
+            const angle = startAngle + flow[flow.length - 1].time * angleStep
+
+            const timeLabel = {
+                label: endDateTime.getHours() + ":" + String(endDateTime.getMinutes()).padStart(2, "0"),
+                angle: angle - Math.PI / 2 + Math.PI / 30,
+                radius: width * 0.36 - radiusStep * ((angle - startAngle) / (2 * Math.PI))
+            };
+
+            timeLabels.push(timeLabel);
+        }
+
+        svg.selectAll(".time-text")
+            .data(timeLabels)
+            .join('text')
+            .attr("transform", `translate(${width / 2}, ${width / 2})`)
+            .attr("x", d => d.radius * Math.cos(d.angle))
+            .attr("y", d => d.radius * Math.sin(d.angle))
+            .attr('text-anchor', "middle")
+            .attr("dominant-baseline", "middle")
+            .text(d => d.label);
+    }
+
+    if (metrics.length > 0) {
+        let chosenMetrics = [
+            {
+                name: "name",
+                real: "name",
+                map: d => d,
+                weight: "bold"
+            },
+            {
+                name: "sport",
+                real: "sport_type",
+                map: d => `Sport: ${d.replace(/([A-Z])/g, ' $1').trim()}`,
+                weight: "normal"
+            },
+            {
+                name: "distance",
+                real: "distance",
+                map: d => `${(d / 1000).toFixed(2)} km`,
+                weight: "normal"
+            },
+            {
+                name: "time",
+                real: "moving_time",
+                map: d => {
+                    let movingTime = `${Math.floor((d % 3600) / 60)}m ${String(Math.round(d % 60)).padStart(2, "0")}s`;
+                    if (d >= 3600) {
+                        movingTime = `${Math.floor(d / 3600)}h ` + movingTime;
+                    }
+                    return movingTime;
+                },
+                weight: "normal"
+            },
+            { 
+                name: "pace", 
+                real: "average_speed",
+                map: d => {
+                    const spkm = 1000 / d;
+                    return `${Math.floor(spkm / 60)}:${String(Math.round(spkm) % 60).padStart(2, "0")} min/km`;
+                },
+                weight: "normal"
+            },
+            {
+                name: "heartrate",
+                real: "average_heartrate",
+                map: d => `Avg HR ${d} bpm`,
+                weight: "normal"
+            }]
+            .filter(m => metrics.includes(m.name[0]))
+            .filter(m => m.real in savedActivity && savedActivity[m.real] !== 0);
+
+        svg.selectAll(".metric-text")
+            .data(chosenMetrics)
+            .join('text')
+            .attr("class", "metric-text")
+            .attr("transform", `translate(${width / 2}, ${width / 2})`)
+            .attr("y", (_, i) => i * width / 12 - ((chosenMetrics.length - 1) * width / 24))
+            .attr('text-anchor', "middle")
+            .attr("dominant-baseline", "middle")
+            .attr("font-weight", d => d.weight)
+            .text(d => d.map(savedActivity[d.real]));
+    }
+
+    svg.selectAll("text")
+        .attr("font-size", width / 25)
+        .attr("font-family", "Custom Font");
+};
+
+const computeData = (data) => {
+    const streams = intensityStreams.filter(s => s in data);
 
     streams.forEach(s => {
         let min = Infinity;
@@ -110,7 +371,7 @@ const visualizeActivityStream = (data, startDateTime, duration) => {
         data[s].data = data[s].data.map(d => (d - min) / (max - min));
     });
 
-    const clusters = kmeans(data, streams);
+    const clusters = kmeans(data, streams, otherStreams.filter(s => s in data));
     let values = [];
     clusters.forEach((cluster, i) => {
         newCentroid = {};
@@ -119,7 +380,8 @@ const visualizeActivityStream = (data, startDateTime, duration) => {
             streams.forEach(a => newCentroid[a] += p[a]);
         });
         streams.forEach(a => newCentroid[a] = newCentroid[a] / cluster.length);
-        values.push({ index: i, value: Math.sqrt(d3.sum(streams, a => Math.pow(newCentroid[a], 2)))});
+        const value = { index: i, value: Math.sqrt(d3.sum(streams, a => Math.pow(newCentroid[a], 2)))};
+        values.push(value);
     });
     values.sort((a, b) => a.value - b.value);
     values = [
@@ -144,70 +406,36 @@ const visualizeActivityStream = (data, startDateTime, duration) => {
     
     const flow = [];
     clusters.forEach((cluster, i) => {
-        flow.push(...cluster.map(p => { return { index: p.index, value: indexToValue[i] } }));
+        flow.push(...cluster.map(p => { 
+            const point = { index: p.index, value: indexToValue[i] };
+            otherStreams.filter(s => s in data).forEach(a => point[a] = p[a]);
+            return point;
+        }));
     });
     flow.sort((a, b) => a.index - b.index);
 
-    const width = document.getElementById("visualization").clientWidth;
-    const angleStep = 2 * Math.PI * (duration / flow.length) / 60;
-    const start = new Date(startDateTime);
-    const startTime = start.getMinutes() + (start.getSeconds() / 60) + (start.getMilliseconds() / 1000);
-    const startAngle = 2 * Math.PI * startTime / 60; 
-    const radiusStep = duration > 60 ? width * 0.06 : 0;
-    const svg = d3.select("#visualization")
-        .attr("viewBox", `0 0 ${width} ${width}`)
-        .attr("xmlns", "http://www.w3.org/2000/svg")
-        .attr("xmlns:xlink", "http://www.w3.org/1999/xlink");
+    flow.forEach((d, i) => {
+        d.timeStep = i < flow.length - 1 ? d.timeStep = flow[i + 1].time - d.time : 1;
+    });
 
-    const colourMap = {
-        "low": "#aaaaaa",
-        "medium": "#555555",
-        "high": "#000000"
-    };
-    const thicknessMap = {
-        "low": 0.01,
-        "medium": 0.02,
-        "high": 0.03
-    };
-    
-    svg.selectAll("path")
-        .data(flow)
-        .join("path")
-        .attr("transform", `translate(${width / 2}, ${width / 2})`)
-        .attr("fill", d => colourMap[d.value])
-        .attr("d", d => {
-            const angle = startAngle + d.index * angleStep;
-            const halfThickness = thicknessMap[d.value] / 2;
-            return d3.arc()({
-                innerRadius: width * (0.45 - halfThickness) - radiusStep * ((angle - startAngle) / (2 * Math.PI)),
-                outerRadius: width * (0.45 + halfThickness) - radiusStep * ((angle - startAngle) / (2 * Math.PI)),
-                startAngle: angle,
-                endAngle: angle + angleStep
-            });
-        });
+    savedFlow = flow;
+
+    visualizeActivityStream(flow);
 };
 
 const downloadSvg = () => {
-    const svgData = $("#visualization")[0].outerHTML;
-    const svgBlob = new Blob([svgData], {type:"image/svg+xml;charset=utf-8"});
-    const svgUrl = URL.createObjectURL(svgBlob);
-    const downloadLink = document.createElement("a");
-    downloadLink.href = svgUrl;
-    downloadLink.download = "activity.svg";
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
+    convertSVGtoImg();
 };
 
 const fetchActivityStream = (activity) => {
     d3.select("#activity-container").style("display", "none");
     d3.select("#visualization-container").style("display", "block");
     
-    d3.select("#visualization > *").remove();
+    d3.selectAll("#visualization > *").remove();
 
     let xhr = new XMLHttpRequest();
     xhr.open("GET", `https://www.strava.com/api/v3/activities/${activity.id}/streams` +
-        `?keys=[${potentialStreams.join(",")}]&key_by_type=true`);
+        `?keys=[${intensityStreams.join(",") + "," + otherStreams.join(",")}]&key_by_type=true`);
     xhr.setRequestHeader("Authorization", "Bearer " + accessCode);
     xhr.send();
 
@@ -215,7 +443,9 @@ const fetchActivityStream = (activity) => {
         if (xhr.readyState === 4) {
             res = JSON.parse(xhr.responseText);
             if ("heartrate" in res) {
-                visualizeActivityStream(res, activity.start_date, activity.elapsed_time / 60);
+                savedActivity = activity;
+                savedStream = res;
+                computeData(res);
             } else {
                 console.log("Server error: " + res.message);
             }
@@ -223,7 +453,7 @@ const fetchActivityStream = (activity) => {
     };
 };
 
-const populateActivities = (activities) => {
+const populateActivities = () => {
     d3.select("#activity-container").style("display", "block");
     d3.select("#visualization-container").style("display", "none");
     d3.select("#activities > *").remove();
@@ -263,7 +493,7 @@ const fetchActivities = () => {
 
     let xhr = new XMLHttpRequest();
     xhr.open("GET", "https://www.strava.com/api/v3/athlete/activities" +
-        `?per_page=10`);
+        `?page=${page++}&per_page=10`);
     xhr.setRequestHeader("Authorization", "Bearer " + accessCode);
     xhr.send();
 
@@ -272,6 +502,7 @@ const fetchActivities = () => {
             try {
                 res = JSON.parse(xhr.responseText);
                 if (Array.isArray(res)) {
+                    activities.push(...res);
                     populateActivities(res);
                 } else {
                     console.log("Server error: " + res.message);
@@ -284,8 +515,10 @@ const fetchActivities = () => {
 };
 
 const main = () => {
-    d3.selectAll("#back-button").on("click", fetchActivities);
+    d3.selectAll("#back-button").on("click", populateActivities);
     d3.selectAll("#download-button").on("click", downloadSvg);
+    d3.selectAll("#more-button").on("click", fetchActivities);
+    d3.selectAll("input").on("change", updateSettings);
 
     let url = new URL(window.location.href);
     let cookies = document.cookie.split('; ').reduce((prev, current) => {
@@ -293,6 +526,12 @@ const main = () => {
         prev[name] = value.join('=');
         return prev;
     }, {});
+
+    if ("settings" in cookies) {
+        settings = cookies["settings"];
+    }
+
+    setupSettings();
 
     if (url.searchParams.has("code")) {
         authCode = url.searchParams.get("code");
