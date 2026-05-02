@@ -165,7 +165,7 @@ const visualizeActivityStream = (flow) => {
     const start = new Date(savedActivity.start_date);
     const startTime = (meetsThreshold ? 60 * start.getHours() : 0) + (start.getMinutes() + (start.getSeconds() / 60));
     const startAngle = 2 * Math.PI * startTime / (60 * (meetsThreshold ? 12 : 1)); 
-    const radiusStep = (flow[flow.length - 1].time / 3600) > (meetsThreshold ? 12 : 1) ? width * 0.06 : 0;
+    const radiusStep = (flow[flow.length - 1].time / 60) > (meetsThreshold ? 720 : 55) ? width * 0.05 : 0;
     const svg = d3.select("#visualization")
         .attr("viewBox", `0 0 ${width} ${width}`)
         .attr("xmlns", "http://www.w3.org/2000/svg")
