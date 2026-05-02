@@ -157,12 +157,15 @@ const visualizeActivityStream = (flow) => {
 
     const [colours, metrics, map, times, background] = settings.split("_");
 
+    const threshold = 4 * 3600;
+    const meetsThreshold = savedActivity.elapsed_time > threshold;
+
     const width = document.getElementById("visualization").clientWidth;
-    const angleStep = 2 * Math.PI / (60 * 60);
+    const angleStep = 2 * Math.PI / (60 * 60 * (meetsThreshold ? 12 : 1));
     const start = new Date(savedActivity.start_date);
-    const startTime = start.getMinutes() + (start.getSeconds() / 60) + (start.getMilliseconds() / 1000);
-    const startAngle = 2 * Math.PI * startTime / 60; 
-    const radiusStep = flow[flow.length - 1].time > 3600 ? width * 0.06 : 0;
+    const startTime = (meetsThreshold ? 60 * start.getHours() : 0) + (start.getMinutes() + (start.getSeconds() / 60));
+    const startAngle = 2 * Math.PI * startTime / (60 * (meetsThreshold ? 12 : 1)); 
+    const radiusStep = (flow[flow.length - 1].time / 3600) > (meetsThreshold ? 12 : 1) ? width * 0.06 : 0;
     const svg = d3.select("#visualization")
         .attr("viewBox", `0 0 ${width} ${width}`)
         .attr("xmlns", "http://www.w3.org/2000/svg")
@@ -236,6 +239,28 @@ const visualizeActivityStream = (flow) => {
         "medium": 0.02,
         "high": 0.03
     };
+
+    const dots = [];
+    for (let i = 0; i < savedActivity.elapsed_time; i += 60 * (meetsThreshold ? 12 : 1)) {
+        dots.push({ start: i, length: d3.min([30, savedActivity.elapsed_time - i]) });
+    }
+    
+    svg.selectAll("path.duration")
+        .data(dots)
+        .join("path")
+        .attr("class", "duration")
+        .attr("transform", `translate(${width / 2}, ${width / 2})`)
+        .attr("fill", "#888888")
+        .attr("d", d => {
+            const angle = startAngle + d.start * angleStep;
+            const halfThickness = thicknessMap["low"] / 8;
+            return d3.arc()({
+                innerRadius: width * (0.39 - halfThickness) - radiusStep * ((angle - startAngle) / (2 * Math.PI)),
+                outerRadius: width * (0.39 + halfThickness) - radiusStep * ((angle - startAngle) / (2 * Math.PI)),
+                startAngle: angle,
+                endAngle: angle + d.length * angleStep
+            });
+        });
     
     svg.selectAll("path.intensity")
         .data(flow)
@@ -250,7 +275,7 @@ const visualizeActivityStream = (flow) => {
                 innerRadius: width * (0.39 - halfThickness) - radiusStep * ((angle - startAngle) / (2 * Math.PI)),
                 outerRadius: width * (0.39 + halfThickness) - radiusStep * ((angle - startAngle) / (2 * Math.PI)),
                 startAngle: angle,
-                endAngle: angle + 1.1 * angleStep * (d.timeStep > (5 * flow[flow.length - 1].time / flow.length) ? 1 : d.timeStep)
+                endAngle: angle + 1 * angleStep * ((d.timeStep > (5 * flow[flow.length - 1].time / flow.length) ? 1 : d.timeStep) + 1)
             });
         });
 
@@ -260,9 +285,10 @@ const visualizeActivityStream = (flow) => {
         if (times.includes("s")) {
             const timeLabel = {
                 label: start.getHours() + ":" + String(start.getMinutes()).padStart(2, "0"),
-                angle: startAngle - Math.PI / 2 - Math.PI / 30,
-                radius: width * 0.40,
+                angle: startAngle - Math.PI / 2 - Math.PI / 24,
+                radius: width * 0.39,
             };
+            timeLabel.angle -= ((1 + Math.cos(Math.PI * timeLabel.angle / (width / 2))) * Math.PI / 96) * (width * 0.39) / timeLabel.radius;
 
             timeLabels.push(timeLabel);
         }
@@ -272,9 +298,10 @@ const visualizeActivityStream = (flow) => {
 
             const timeLabel = {
                 label: endDateTime.getHours() + ":" + String(endDateTime.getMinutes()).padStart(2, "0"),
-                angle: angle - Math.PI / 2 + Math.PI / 30,
-                radius: width * 0.36 - radiusStep * ((angle - startAngle) / (2 * Math.PI))
+                angle: angle - Math.PI / 2 + Math.PI / 24,
+                radius: width * 0.39 - radiusStep * ((angle - startAngle) / (2 * Math.PI))
             };
+            timeLabel.angle += ((1 + Math.cos(Math.PI * timeLabel.angle / (width / 2))) * Math.PI / 96) * (width * 0.39) / timeLabel.radius;
 
             timeLabels.push(timeLabel);
         }
