@@ -585,7 +585,7 @@ const main = () => {
         xhr.open("POST", "https://www.strava.com/api/v3/oauth/token" +
             "?client_id=" + clientId + 
             "&client_secret=" + clientSecret +
-            "&code=" + refreshCode +
+            "&refresh_token=" + refreshCode +
             "&grant_type=refresh_token");
         xhr.send();
 
