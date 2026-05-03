@@ -28,7 +28,7 @@ const getSetting = (setting) => {
 const updateSettings = () => {
     const newSettings = ["colour_scheme", "metrics", "map", "time", "background"].map(getSetting);
     settings = newSettings.join("_");
-    document.cookie = `settings=${settings}; expires=${new Date((new Date()).setMonth((new Date()).getMonth() + 12))}`;
+    document.cookie = `settings=${settings}; expires=${dayjs().add(12, "month")}`;
     visualizeActivityStream(savedFlow);
 };
 
@@ -76,7 +76,7 @@ const clearCodes = () => {
 const saveCodes = () => {
     document.cookie = `accessCode=${accessCode}; expires=${accessCodeExpiryDate}`;
     document.cookie = `accessCodeExpiryDate=${accessCodeExpiryDate}; expires=${accessCodeExpiryDate.toString()}`;
-    document.cookie = `refreshCode=${refreshCode}; expires=${new Date((new Date()).setMonth((new Date()).getMonth() + 2))}`;
+    document.cookie = `refreshCode=${refreshCode}; expires=${dayjs().add(2, "month")}`;
 };
 
 const distance = (data, attributes, index, centroid) => {
@@ -162,10 +162,10 @@ const visualizeActivityStream = (flow) => {
 
     const width = document.getElementById("visualization").clientWidth;
     const angleStep = 2 * Math.PI / (60 * 60 * (meetsThreshold ? 12 : 1));
-    const start = new Date(savedActivity.start_date);
-    const startTime = (meetsThreshold ? 60 * start.getHours() : 0) + (start.getMinutes() + (start.getSeconds() / 60));
+    const start = dayjs(savedActivity.start_date_local).subtract(dayjs().utcOffset(), "minute");
+    const startTime = (meetsThreshold ? 60 * start.hour() : 0) + (start.minute() + (start.second() / 60));
     const startAngle = 2 * Math.PI * startTime / (60 * (meetsThreshold ? 12 : 1)); 
-    const radiusStep = (flow[flow.length - 1].time / 60) > (meetsThreshold ? 720 : 55) ? width * 0.05 : 0;
+    const radiusStep = (flow[flow.length - 1].time / 60) > (meetsThreshold ? 720 : (times.length > 0 ? 55 : 59.5)) ? width * 0.05 : 0;
     const svg = d3.select("#visualization")
         .attr("viewBox", `0 0 ${width} ${width}`)
         .attr("xmlns", "http://www.w3.org/2000/svg")
@@ -284,7 +284,7 @@ const visualizeActivityStream = (flow) => {
         const defs = svg.append("defs");
         if (times.includes("s")) {
             const timeLabel = {
-                label: start.getHours() + ":" + String(start.getMinutes()).padStart(2, "0"),
+                label: start.hour() + ":" + String(start.minute()).padStart(2, "0"),
                 angle: startAngle - Math.PI / 2 - Math.PI / 24,
                 radius: width * 0.39,
             };
@@ -293,11 +293,11 @@ const visualizeActivityStream = (flow) => {
             timeLabels.push(timeLabel);
         }
         if (times.includes("e")) {
-            const endDateTime = new Date(start.getTime() + flow[flow.length - 1].time * 1000);
+            const endDateTime = start.add(flow[flow.length - 1].time, "second");
             const angle = startAngle + flow[flow.length - 1].time * angleStep
 
             const timeLabel = {
-                label: endDateTime.getHours() + ":" + String(endDateTime.getMinutes()).padStart(2, "0"),
+                label: endDateTime.hour() + ":" + String(endDateTime.minute()).padStart(2, "0"),
                 angle: angle - Math.PI / 2 + Math.PI / 24,
                 radius: width * 0.39 - radiusStep * ((angle - startAngle) / (2 * Math.PI))
             };
@@ -507,9 +507,8 @@ const populateActivities = () => {
         .join("p")
         .attr("class", "date")
         .text(d => {
-            const date = new Date(d.start_date);
-            return date.toLocaleString('default', { month: 'long' }) + " " + date.getDate() + ", " + date.getFullYear() +
-                " - " + date.getHours() + ":" + String(date.getMinutes()).padStart(2, "0");
+            const date = dayjs(d.start_date_local).subtract(dayjs().utcOffset(), "minute");
+            return date.format("MMM D, YYYY, H:mm");
         });
 
     d3.select("#activity-container").attr("style", "block");
@@ -563,9 +562,9 @@ const main = () => {
     if (url.searchParams.has("code")) {
         authCode = url.searchParams.get("code");
     } 
-    if ("accessCode" in cookies && Date.now() < new Date(cookies.accessCodeExpiryDate)) {
+    if ("accessCode" in cookies && dayjs().isBefore(dayjs(cookies.accessCodeExpiryDate))) {
         accessCode = cookies.accessCode;
-        accessCodeExpiryDate = new Date(cookies.accessCodeExpiryDate)
+        accessCodeExpiryDate = dayjs(cookies.accessCodeExpiryDate)
     } 
     if ("refreshCode" in cookies) {
         refreshCode = cookies.refreshCode;
@@ -595,7 +594,7 @@ const main = () => {
                 res = JSON.parse(xhr.responseText);
                 if (res.token_type && res.token_type === "Bearer") {
                     accessCode = res.access_token;
-                    accessCodeExpiryDate = new Date(res.expires_at * 1000);
+                    accessCodeExpiryDate = dayjs(res.expires_at * 1000);
                     refreshCode = res.refresh_token;
                     saveCodes();
 
@@ -625,7 +624,7 @@ const main = () => {
                 res = JSON.parse(xhr.responseText);
                 if (res.token_type && res.token_type === "Bearer") {
                     accessCode = res.access_token;
-                    accessCodeExpiryDate = new Date(res.expires_at * 1000);
+                    accessCodeExpiryDate = dayjs(res.expires_at * 1000);
                     refreshCode = res.refresh_token;
                     saveCodes();
 
