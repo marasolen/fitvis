@@ -68,11 +68,12 @@ p.date {
 
 .form {
     display: grid;
-    grid-template-columns: 30% auto auto auto;
+    grid-template-columns: auto auto auto;
 }
 
 .form p {
     font-weight: bold;
+    font-size: normal;
     padding-bottom: 5%;
 }
 
