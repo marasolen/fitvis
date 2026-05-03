@@ -73,7 +73,6 @@ p.date {
 
 .form p {
     font-weight: bold;
-    font-size: normal;
     padding-bottom: 5%;
 }
 
@@ -92,6 +91,12 @@ p.date {
 
     .visualization {
         width: 70%;
+    }
+}
+
+@media screen and (orientation: portrait) {
+    .form {
+        font-size: x-large;
     }
 }
 
