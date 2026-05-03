@@ -96,7 +96,7 @@ p.date {
 
 @media screen and (orientation: portrait) {
     .form {
-        font-size: x-large;
+        font-size: large;
     }
 }
 
