@@ -180,17 +180,23 @@ const visualizeActivityStream = (flow) => {
         s: {
             "low": "#fcccb8",
             "medium": "#fca079",
-            "high": "#FC4C02"
+            "high": "#FC4C02",
+            "start": "#29BF12",
+            "stop": "#D91E36"
         },
         g: {
             "low": "#aaaaaa",
             "medium": "#555555",
-            "high": "#000000"
+            "high": "#000000",
+            "start": "#29BF12",
+            "stop": "#D91E36"
         },
         t: {
             "low": "#33a02c",
             "medium": "#F1D302",
-            "high": "#F8333C"
+            "high": "#F8333C",
+            "start": "#29BF12",
+            "stop": "#D91E36"
         }
     };
 
@@ -279,29 +285,70 @@ const visualizeActivityStream = (flow) => {
             });
         });
 
+    const triangleGenerator = angle => {
+        return d3.lineRadial()
+            .angle(d3.scaleLinear().domain([0, 3]).range([angle - Math.PI, angle + Math.PI]))
+            .radius(width / 36)
+            (Array.from(Array(4).keys()));
+    };
+
+    const octogonGenerator = angle => {
+        return d3.lineRadial()
+            .angle(d3.scaleLinear().domain([0, 8]).range([Math.PI / 8, 2 * Math.PI + Math.PI / 8]))
+            .radius(width / 36)
+            (Array.from(Array(9).keys()));
+    };
+
+    const startSymbolAngle = startAngle - Math.PI / 27 - Math.PI / 2;
+    let stopSymbolAngle = startAngle + flow[flow.length - 1].time * angleStep - Math.PI / 2;
+    const stopSymbolRadius = width * (radiusStep > 0 ? 0.375 : 0.39) - radiusStep * ((stopSymbolAngle - startAngle) / (2 * Math.PI));
+    stopSymbolAngle += (Math.PI / 27) * (width * 0.39) / stopSymbolRadius;
+    const symbols = [
+        {
+            shape: triangleGenerator(startSymbolAngle),
+            x: width * 0.39 * Math.cos(startSymbolAngle),
+            y: width * 0.39 * Math.sin(startSymbolAngle),
+            colour: "start"
+        },
+        {
+            shape: octogonGenerator(stopSymbolAngle),
+            x: stopSymbolRadius * Math.cos(stopSymbolAngle),
+            y: stopSymbolRadius * Math.sin(stopSymbolAngle),
+            colour: "stop"
+        }
+    ];
+    svg.selectAll("path.symbol")
+        .data(symbols)
+        .join("path")
+        .attr("class", "symbol")
+        .attr("transform", d => `translate(${width / 2 + d.x}, ${width / 2 + d.y})`)
+        .attr("fill", d => colourMaps[colours][d.colour])
+        .attr("opacity", 0.5)
+        .attr("d", d => d.shape);
+
+
     if (times.length > 0) {
         let timeLabels = [];
         const defs = svg.append("defs");
         if (times.includes("s")) {
             const timeLabel = {
                 label: start.hour() + ":" + String(start.minute()).padStart(2, "0"),
-                angle: startAngle - Math.PI / 2 - Math.PI / 24,
+                angle: startAngle - Math.PI / 2 - Math.PI / 12,
                 radius: width * 0.39,
             };
-            timeLabel.angle -= ((1 + Math.cos(Math.PI * timeLabel.angle / (width / 2))) * Math.PI / 96) * (width * 0.39) / timeLabel.radius;
 
             timeLabels.push(timeLabel);
         }
         if (times.includes("e")) {
             const endDateTime = start.add(flow[flow.length - 1].time, "second");
-            const angle = startAngle + flow[flow.length - 1].time * angleStep
+            const angle = startAngle + flow[flow.length - 1].time * angleStep - Math.PI / 2
 
             const timeLabel = {
                 label: endDateTime.hour() + ":" + String(endDateTime.minute()).padStart(2, "0"),
-                angle: angle - Math.PI / 2 + Math.PI / 24,
-                radius: width * 0.39 - radiusStep * ((angle - startAngle) / (2 * Math.PI))
+                angle: angle,
+                radius: width * (radiusStep > 0 ? 0.375 : 0.39) - radiusStep * ((angle - startAngle) / (2 * Math.PI))
             };
-            timeLabel.angle += ((1 + Math.cos(Math.PI * timeLabel.angle / (width / 2))) * Math.PI / 96) * (width * 0.39) / timeLabel.radius;
+            timeLabel.angle += (Math.PI / 12) * (width * 0.39) / timeLabel.radius;
 
             timeLabels.push(timeLabel);
         }
@@ -328,7 +375,7 @@ const visualizeActivityStream = (flow) => {
             {
                 name: "sport",
                 real: "sport_type",
-                map: d => `Sport: ${d.replace(/([A-Z])/g, ' $1').trim()}`,
+                map: d => `${d.replace(/([A-Z])/g, ' $1').trim()}`,
                 weight: "normal"
             },
             {
