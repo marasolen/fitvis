@@ -8,7 +8,7 @@ let authCode, refreshCode, accessCode, accessCodeExpiryDate;
 
 let page = 1;
 let activities = [];
-let settings = "s__h__t";
+let settings = "s__h__t_n";
 
 let savedActivity;
 let savedStream;
@@ -26,7 +26,7 @@ const getSetting = (setting) => {
 };
 
 const updateSettings = () => {
-    const newSettings = ["colour_scheme", "metrics", "map", "time", "background"].map(getSetting);
+    const newSettings = ["colour_scheme", "metrics", "map", "time", "background", "direction"].map(getSetting);
     settings = newSettings.join("_");
     document.cookie = `settings=${settings}; expires=${dayjs().add(12, "month")}`;
     visualizeActivityStream(savedFlow);
@@ -42,9 +42,9 @@ const setupSetting = (setting, selection) => {
 };
 
 const setupSettings = () => {
-    let [colours, metrics, map, times, background] = settings.split("_");
+    let [colours, metrics, map, times, background, direction] = settings.split("_");
 
-    [colours, map, background].forEach(list => {
+    [colours, map, background, direction].forEach(list => {
         list = list[0];
     });
 
@@ -53,7 +53,8 @@ const setupSettings = () => {
         ["metrics", metrics], 
         ["map", map], 
         ["time", times], 
-        ["background", background]
+        ["background", background],
+        ["direction", direction]
     ].forEach(([setting, selection]) => setupSetting(setting, selection));
 };
 
@@ -155,7 +156,7 @@ const kmeans = (data, attributes, saveAttributes) => {
 const visualizeActivityStream = (flow) => {
     d3.selectAll("#visualization > *").remove();
 
-    const [colours, metrics, map, times, background] = settings.split("_");
+    const [colours, metrics, map, times, background, direction] = settings.split("_");
 
     const threshold = 4 * 3600;
     const meetsThreshold = savedActivity.elapsed_time > threshold;
@@ -164,8 +165,9 @@ const visualizeActivityStream = (flow) => {
     const angleStep = 2 * Math.PI / (60 * 60 * (meetsThreshold ? 12 : 1));
     const start = dayjs(savedActivity.start_date_local).subtract(dayjs().utcOffset(), "minute");
     const startTime = (meetsThreshold ? 60 * start.hour() : 0) + (start.minute() + (start.second() / 60));
-    const startAngle = 2 * Math.PI * startTime / (60 * (meetsThreshold ? 12 : 1)); 
-    const radiusStep = (flow[flow.length - 1].time / 60) > (meetsThreshold ? 720 : (times.length > 0 ? 55 : 59.5)) ? width * 0.05 : 0;
+    const startAngle = 2 * Math.PI * startTime / (60 * (meetsThreshold ? 12 : 1));
+    let circleDurationThreshold = (meetsThreshold ? 720 : 60) * (1 - (times.length > 0 ? 0.1 : 0) - ("pc".includes(direction) ? 0.1 : 0));
+    const radiusStep = (flow[flow.length - 1].time / 60) > circleDurationThreshold ? width * 0.05 : 0;
     const svg = d3.select("#visualization")
         .attr("viewBox", `0 0 ${width} ${width}`)
         .attr("xmlns", "http://www.w3.org/2000/svg")
@@ -285,47 +287,77 @@ const visualizeActivityStream = (flow) => {
             });
         });
 
-    const triangleGenerator = angle => {
+    const triangleGenerator = (angle, radiusDivider) => {
         return d3.lineRadial()
             .angle(d3.scaleLinear().domain([0, 3]).range([angle - Math.PI, angle + Math.PI]))
-            .radius(width / 36)
+            .radius(width / radiusDivider)
             (Array.from(Array(4).keys()));
     };
+    if (direction === "p" || direction === "c") {
 
-    const octogonGenerator = angle => {
-        return d3.lineRadial()
-            .angle(d3.scaleLinear().domain([0, 8]).range([Math.PI / 8, 2 * Math.PI + Math.PI / 8]))
-            .radius(width / 36)
-            (Array.from(Array(9).keys()));
-    };
+        const squareGenerator = angle => {
+            return d3.lineRadial()
+                .angle(d3.scaleLinear().domain([0, 4]).range([Math.PI / 4, 2 * Math.PI + Math.PI / 4]))
+                .radius(width / 36)
+                (Array.from(Array(9).keys()));
+        };
 
-    const startSymbolAngle = startAngle - Math.PI / 27 - Math.PI / 2;
-    let stopSymbolAngle = startAngle + flow[flow.length - 1].time * angleStep - Math.PI / 2;
-    const stopSymbolRadius = width * (radiusStep > 0 ? 0.375 : 0.39) - radiusStep * ((stopSymbolAngle - startAngle) / (2 * Math.PI));
-    stopSymbolAngle += (Math.PI / 27) * (width * 0.39) / stopSymbolRadius;
-    const symbols = [
-        {
-            shape: triangleGenerator(startSymbolAngle),
-            x: width * 0.39 * Math.cos(startSymbolAngle),
-            y: width * 0.39 * Math.sin(startSymbolAngle),
-            colour: "start"
-        },
-        {
-            shape: octogonGenerator(stopSymbolAngle),
-            x: stopSymbolRadius * Math.cos(stopSymbolAngle),
-            y: stopSymbolRadius * Math.sin(stopSymbolAngle),
-            colour: "stop"
-        }
-    ];
-    svg.selectAll("path.symbol")
-        .data(symbols)
-        .join("path")
-        .attr("class", "symbol")
-        .attr("transform", d => `translate(${width / 2 + d.x}, ${width / 2 + d.y})`)
-        .attr("fill", d => colourMaps[colours][d.colour])
-        .attr("opacity", 0.5)
-        .attr("d", d => d.shape);
+        const circleGenerator = angle => {
+            return d3.lineRadial()
+                .angle(d3.scaleLinear().domain([0, 100]).range([0, 2 * Math.PI]))
+                .radius(width / 48)
+                (Array.from(Array(101).keys()));
+        };
 
+        const startSymbolAngle = startAngle - Math.PI / 27 - Math.PI / 2;
+        let stopSymbolAngle = startAngle + flow[flow.length - 1].time * angleStep - Math.PI / 2;
+        const stopSymbolRadius = width * (radiusStep > 0 ? 0.375 : 0.39) - radiusStep * ((stopSymbolAngle - startAngle) / (2 * Math.PI));
+        stopSymbolAngle += (Math.PI / 27) * (width * 0.39) / stopSymbolRadius;
+        const symbols = [
+            {
+                shape: direction === "p" ? triangleGenerator(startSymbolAngle, 36) : circleGenerator(0),
+                x: width * 0.39 * Math.cos(startSymbolAngle),
+                y: width * 0.39 * Math.sin(startSymbolAngle),
+                colour: "start"
+            },
+            {
+                shape: direction === "p" ? squareGenerator(startSymbolAngle) : circleGenerator(0),
+                x: stopSymbolRadius * Math.cos(stopSymbolAngle),
+                y: stopSymbolRadius * Math.sin(stopSymbolAngle),
+                colour: "stop"
+            }
+        ];
+        svg.selectAll("path.symbol")
+            .data(symbols)
+            .join("path")
+            .attr("class", "symbol")
+            .attr("transform", d => `translate(${width / 2 + d.x}, ${width / 2 + d.y})`)
+            .attr("fill", d => colourMaps[colours][d.colour])
+            .attr("opacity", 0.5)
+            .attr("d", d => d.shape);
+    } else if (direction === "a") {
+        svg.selectAll("path.direction-arrow")
+            .data([{ start: startAngle, end: startAngle + Math.PI / 16 }])
+            .join("path")
+            .attr("class", "direction-arrow")
+            .attr("transform", `translate(${width / 2}, ${width / 2})`)
+            .attr("fill", d => colourMaps[colours]["high"])
+            .attr("d", d => {
+                return d3.arc()({
+                    innerRadius: width * 0.425,
+                    outerRadius: width * 0.435,
+                    startAngle: d.start,
+                    endAngle: d.end
+                });
+            });
+        svg.selectAll("path.direction-arrow-head")
+            .data([{ end: startAngle + Math.PI / 16 - Math.PI / 2 }])
+            .join("path")
+            .attr("class", "direction-arrow-head")
+            .attr("transform", d => `translate(${width / 2 + width * 0.43 * Math.cos(d.end)}, ${width / 2 + width * 0.43 * Math.sin(d.end)})`)
+            .attr("fill", d => colourMaps[colours]["high"])
+            .attr("d", d => triangleGenerator(d.end, 60));
+    }
 
     if (times.length > 0) {
         let timeLabels = [];
@@ -333,7 +365,7 @@ const visualizeActivityStream = (flow) => {
         if (times.includes("s")) {
             const timeLabel = {
                 label: start.hour() + ":" + String(start.minute()).padStart(2, "0"),
-                angle: startAngle - Math.PI / 2 - Math.PI / 12,
+                angle: startAngle - Math.PI / 2 - Math.PI / ("pc".includes(direction) ? 12 : 24),
                 radius: width * 0.39,
             };
 
@@ -348,7 +380,7 @@ const visualizeActivityStream = (flow) => {
                 angle: angle,
                 radius: width * (radiusStep > 0 ? 0.375 : 0.39) - radiusStep * ((angle - startAngle) / (2 * Math.PI))
             };
-            timeLabel.angle += (Math.PI / 12) * (width * 0.39) / timeLabel.radius;
+            timeLabel.angle += (Math.PI / ("pc".includes(direction) ? 12 : 24)) * (width * 0.39) / timeLabel.radius;
 
             timeLabels.push(timeLabel);
         }
