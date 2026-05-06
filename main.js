@@ -8,8 +8,8 @@ let authCode, refreshCode, accessCode, accessCodeExpiryDate;
 
 let page = 1;
 let activities = [];
-let defaultSettings = "s__h__t_n";
-let settings = "s__h__t_n";
+let defaultSettings = "s__h__t_n_o";
+let settings = "s__h__t_n_o";
 
 let savedActivity;
 let savedStream;
@@ -27,7 +27,7 @@ const getSetting = (setting) => {
 };
 
 const updateSettings = () => {
-    const newSettings = ["colour_scheme", "metrics", "map", "time", "background", "direction"].map(getSetting);
+    const newSettings = ["colour_scheme", "metrics", "map", "time", "background", "direction", "circle"].map(getSetting);
     settings = newSettings.join("_");
     document.cookie = `settings=${settings}; expires=${dayjs().add(12, "month")}`;
     visualizeActivityStream(savedFlow);
@@ -43,9 +43,15 @@ const setupSetting = (setting, selection) => {
 };
 
 const setupSettings = () => {
-    let [colours, metrics, map, times, background, direction] = settings.split("_");
+    if (settings.split("_").length === 5) {
+        settings += "_n_o"
+    }
+    if (settings.split("_").length === 6) {
+        settings += "_o"
+    }
+    let [colours, metrics, map, times, background, direction, circle] = settings.split("_");
 
-    [colours, map, background, direction].forEach(list => {
+    [colours, map, background, direction, circle].forEach(list => {
         list = list[0];
     });
 
@@ -55,7 +61,8 @@ const setupSettings = () => {
         ["map", map], 
         ["time", times], 
         ["background", background],
-        ["direction", direction]
+        ["direction", direction],
+        ["circle", circle]
     ].forEach(([setting, selection]) => setupSetting(setting, selection));
 };
 
@@ -157,10 +164,13 @@ const kmeans = (data, attributes, saveAttributes) => {
 const visualizeActivityStream = (flow) => {
     d3.selectAll("#visualization > *").remove();
 
-    const [colours, metrics, map, times, background, direction] = settings.split("_");
+    const [colours, metrics, map, times, background, direction, circle] = settings.split("_");
 
-    const threshold = 4 * 3600;
-    const meetsThreshold = savedActivity.elapsed_time > threshold;
+    const meetsThreshold = circle === "t";
+
+    const duration = flow[flow.length - 1].time / (60 * 60 * (meetsThreshold ? 12 : 1));
+    const lineThicknessMultiplier = Math.log(Math.ceil(duration) + 2) / Math.log(3);
+    console.log(duration, lineThicknessMultiplier);
 
     const width = document.getElementById("visualization").clientWidth;
     const angleStep = 2 * Math.PI / (60 * 60 * (meetsThreshold ? 12 : 1));
@@ -168,7 +178,7 @@ const visualizeActivityStream = (flow) => {
     const startTime = (meetsThreshold ? 60 * start.hour() : 0) + (start.minute() + (start.second() / 60));
     const startAngle = 2 * Math.PI * startTime / (60 * (meetsThreshold ? 12 : 1));
     let circleDurationThreshold = (meetsThreshold ? 720 : 60) * (1 - (times.length > 0 ? 0.1 : 0) - ("pc".includes(direction) ? 0.1 : 0));
-    const radiusStep = (flow[flow.length - 1].time / 60) > circleDurationThreshold ? width * 0.05 : 0;
+    const radiusStep = (flow[flow.length - 1].time / 60) > circleDurationThreshold ? width * 0.05 / lineThicknessMultiplier : 0;
     const svg = d3.select("#visualization")
         .attr("viewBox", `0 0 ${width} ${width}`)
         .attr("xmlns", "http://www.w3.org/2000/svg")
@@ -244,9 +254,9 @@ const visualizeActivityStream = (flow) => {
     }
 
     const thicknessMap = {
-        "low": 0.01,
-        "medium": 0.02,
-        "high": 0.03
+        "low": 0.01 / lineThicknessMultiplier,
+        "medium": 0.02 / lineThicknessMultiplier,
+        "high": 0.03 / lineThicknessMultiplier
     };
 
     const dots = [];
