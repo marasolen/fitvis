@@ -95,16 +95,24 @@ const distance = (data, attributes, index, centroid) => {
 const kmeans = (data, attributes, saveAttributes) => {
     const numPoints = data[attributes[0]].data.length;
 
-    let centroids = [0, Math.floor(numPoints / 3), Math.floor(2 * numPoints / 3)].map(i => {
-        const centroid = {};
-        attributes.forEach(a => centroid[a] = data[a].data[i]);
-        return centroid;
-    });
+    let iterations = 0;
+    const getCentroids = () => {
+        const centroidIndexAdder = iterations / 100;
+        return [
+            (0 + centroidIndexAdder) % numPoints, 
+            (Math.floor(numPoints / 3) + centroidIndexAdder) % numPoints, 
+            (Math.floor(2 * numPoints / 3) + centroidIndexAdder) % numPoints
+        ].map(i => {
+            const centroid = {};
+            attributes.forEach(a => centroid[a] = data[a].data[i]);
+            return centroid;
+        });
+    };
+    let centroids = getCentroids();
     let converged = false;
     let clusters;
-    let iterations = 100;
 
-    while (!converged && iterations > 0) {
+    while (!converged && iterations < 999) {
         clusters = [[], [], []];
 
         for (let i = 0; i < numPoints; i++) {
@@ -155,7 +163,11 @@ const kmeans = (data, attributes, saveAttributes) => {
             centroids = newCentroids;
         }
 
-        iterations--;
+        iterations++;
+
+        if (iterations % 100 === 0 && !converged) {
+            centroids = getCentroids();
+        }
     }
 
     return clusters;
@@ -170,7 +182,6 @@ const visualizeActivityStream = (flow) => {
 
     const duration = flow[flow.length - 1].time / (60 * 60 * (meetsThreshold ? 12 : 1));
     const lineThicknessMultiplier = Math.log(Math.ceil(duration) + 2) / Math.log(3);
-    console.log(duration, lineThicknessMultiplier);
 
     const width = document.getElementById("visualization").clientWidth;
     const angleStep = 2 * Math.PI / (60 * 60 * (meetsThreshold ? 12 : 1));
