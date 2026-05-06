@@ -288,7 +288,7 @@ const visualizeActivityStream = (flow) => {
                 innerRadius: width * (0.39 - halfThickness) - radiusStep * ((angle - startAngle) / (2 * Math.PI)),
                 outerRadius: width * (0.39 + halfThickness) - radiusStep * ((angle - startAngle) / (2 * Math.PI)),
                 startAngle: angle,
-                endAngle: angle + d.length * angleStep
+                endAngle: angle + d.length * angleStep * (meetsThreshold ? 12 : 1) 
             });
         });
     
@@ -305,7 +305,7 @@ const visualizeActivityStream = (flow) => {
                 innerRadius: width * (0.39 - halfThickness) - radiusStep * ((angle - startAngle) / (2 * Math.PI)),
                 outerRadius: width * (0.39 + halfThickness) - radiusStep * ((angle - startAngle) / (2 * Math.PI)),
                 startAngle: angle,
-                endAngle: angle + 1 * angleStep * ((d.timeStep > (5 * flow[flow.length - 1].time / flow.length) ? 1 : d.timeStep) + 1)
+                endAngle: angle + 1 * angleStep * ((d.timeStep > (5 * flow[flow.length - 1].time / flow.length) ? 1 : d.timeStep) + (meetsThreshold ? 12 : 1))
             });
         });
 
