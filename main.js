@@ -8,6 +8,7 @@ let authCode, refreshCode, accessCode, accessCodeExpiryDate;
 
 let page = 1;
 let activities = [];
+let defaultSettings = "s__h__t_n";
 let settings = "s__h__t_n";
 
 let savedActivity;
@@ -309,10 +310,10 @@ const visualizeActivityStream = (flow) => {
                 (Array.from(Array(101).keys()));
         };
 
-        const startSymbolAngle = startAngle - Math.PI / 27 - Math.PI / 2;
+        const startSymbolAngle = startAngle - (direction === "c" ? Math.PI / 65 : Math.PI / 27) - Math.PI / 2;
         let stopSymbolAngle = startAngle + flow[flow.length - 1].time * angleStep - Math.PI / 2;
         const stopSymbolRadius = width * (radiusStep > 0 ? 0.375 : 0.39) - radiusStep * ((stopSymbolAngle - startAngle) / (2 * Math.PI));
-        stopSymbolAngle += (Math.PI / 27) * (width * 0.39) / stopSymbolRadius;
+        stopSymbolAngle += (direction === "c" ? Math.PI / 65 : Math.PI / 27) * (width * 0.39) / stopSymbolRadius;
         const symbols = [
             {
                 shape: direction === "p" ? triangleGenerator(startSymbolAngle, 36) : circleGenerator(0),
@@ -327,13 +328,32 @@ const visualizeActivityStream = (flow) => {
                 colour: "stop"
             }
         ];
+
+        const checkered = textures.paths()
+            .d(s =>
+                `M 0,0 
+                l ${s / 2},${0} 
+                l ${0},${s} 
+                l ${s / 2},${0} 
+                l ${0},${-s / 2} 
+                l ${-s},${0} 
+                l ${0},${-s / 2}`
+            )
+            .size(50)
+            .strokeWidth(1)
+            .thicker(2)
+            .stroke("#000000")
+            .fill("#000000");
+
+        svg.call(checkered);
+
         svg.selectAll("path.symbol")
             .data(symbols)
             .join("path")
             .attr("class", "symbol")
             .attr("transform", d => `translate(${width / 2 + d.x}, ${width / 2 + d.y})`)
-            .attr("fill", d => colourMaps[colours][d.colour])
-            .attr("opacity", 0.5)
+            .attr("fill", d => direction === "c" && d.colour === "stop" ? checkered.url() : colourMaps[colours][d.colour])
+            .attr("opacity", 1)
             .attr("d", d => d.shape);
     } else if (direction === "a") {
         svg.selectAll("path.direction-arrow")
@@ -636,7 +656,13 @@ const main = () => {
         settings = cookies["settings"];
     }
 
-    setupSettings();
+    try {
+        setupSettings();
+    } catch {
+        settings = defaultSettings;
+        document.cookie = `settings=${settings}; expires=${dayjs().add(12, "month")}`;
+        setupSettings();
+    }
 
     if (url.searchParams.has("code")) {
         authCode = url.searchParams.get("code");
