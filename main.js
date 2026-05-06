@@ -589,12 +589,12 @@ const fetchActivityStream = (activity) => {
     xhr.onreadystatechange = (e) => {
         if (xhr.readyState === 4) {
             res = JSON.parse(xhr.responseText);
-            if ("heartrate" in res) {
+            if (intensityStreams.map(d => d in res).filter(d => d).length > 0) {
                 savedActivity = activity;
                 savedStream = res;
                 computeData(res);
             } else {
-                console.log("Server error: " + res.message);
+                console.log("Server error: " + res);
             }
         }
     };
