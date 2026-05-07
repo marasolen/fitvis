@@ -505,7 +505,7 @@ const visualizeActivityStream = (flow) => {
 };
 
 const computeData = (data) => {
-    const streams = intensityStreams.filter(s => s in data);
+    let streams = intensityStreams.filter(s => s in data);
 
     streams.forEach(s => {
         let min = Infinity;
@@ -517,6 +517,22 @@ const computeData = (data) => {
 
         data[s].data = data[s].data.map(d => (d - min) / (max - min));
     });
+
+    const goodStreams = streams.filter(s => {
+        let total = 0;
+        let nonZero = 0;
+        data[s].data.forEach(d => {
+            total++;
+            nonZero += (d === 0 || isNaN(d)) ? 0 : 1;
+        });
+        return (nonZero / total) > 0.1;
+    });
+
+    if (goodStreams.length > 0) {
+        streams = goodStreams;
+    }
+
+    console.log(`Streams in use: ${streams}`);
 
     const clusters = kmeans(data, streams, otherStreams.filter(s => s in data));
     let values = [];
