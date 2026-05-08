@@ -8,12 +8,13 @@ let authCode, refreshCode, accessCode, accessCodeExpiryDate;
 
 let page = 1;
 let activities = [];
-let defaultSettings = "s__h__t_n_o";
-let settings = "s__h__t_n_o";
+let defaultSettings = "s__h__t_n_o_h";
+let settings = "s__h__t_n_o_h";
 
 let savedActivity;
 let savedStream;
 let savedFlow;
+let savedLaps;
 
 const getSetting = (setting) => {
     let value = "";
@@ -27,10 +28,10 @@ const getSetting = (setting) => {
 };
 
 const updateSettings = () => {
-    const newSettings = ["colour_scheme", "metrics", "map", "time", "background", "direction", "circle"].map(getSetting);
+    const newSettings = ["colour_scheme", "metrics", "map", "time", "background", "direction", "circle", "laps"].map(getSetting);
     settings = newSettings.join("_");
     document.cookie = `settings=${settings}; expires=${dayjs().add(12, "month")}`;
-    visualizeActivityStream(savedFlow);
+    visualizeActivityStream(savedFlow, savedLaps);
 };
 
 const setupSetting = (setting, selection) => {
@@ -44,14 +45,17 @@ const setupSetting = (setting, selection) => {
 
 const setupSettings = () => {
     if (settings.split("_").length === 5) {
-        settings += "_n_o"
+        settings += "_n_o_h"
     }
     if (settings.split("_").length === 6) {
-        settings += "_o"
+        settings += "_o_h"
     }
-    let [colours, metrics, map, times, background, direction, circle] = settings.split("_");
+    if (settings.split("_").length === 7) {
+        settings += "_h"
+    }
+    let [colours, metrics, map, times, background, direction, circle, laps] = settings.split("_");
 
-    [colours, map, background, direction, circle].forEach(list => {
+    [colours, map, background, direction, circle, laps].forEach(list => {
         list = list[0];
     });
 
@@ -62,7 +66,8 @@ const setupSettings = () => {
         ["time", times], 
         ["background", background],
         ["direction", direction],
-        ["circle", circle]
+        ["circle", circle],
+        ["laps", laps]
     ].forEach(([setting, selection]) => setupSetting(setting, selection));
 };
 
@@ -173,10 +178,10 @@ const kmeans = (data, attributes, saveAttributes) => {
     return clusters;
 };
 
-const visualizeActivityStream = (flow) => {
+const visualizeActivityStream = (flow, lapData) => {
     d3.selectAll("#visualization > *").remove();
 
-    const [colours, metrics, map, times, background, direction, circle] = settings.split("_");
+    const [colours, metrics, map, times, background, direction, circle, laps] = settings.split("_");
 
     const meetsThreshold = circle === "t";
 
@@ -206,21 +211,24 @@ const visualizeActivityStream = (flow) => {
             "medium": "#fca079",
             "high": "#FC4C02",
             "start": "#29BF12",
-            "stop": "#D91E36"
+            "stop": "#D91E36",
+            "lap": "#420C14"
         },
         g: {
             "low": "#aaaaaa",
             "medium": "#555555",
             "high": "#000000",
             "start": "#29BF12",
-            "stop": "#D91E36"
+            "stop": "#D91E36",
+            "lap": "#F24333"
         },
         t: {
             "low": "#33a02c",
             "medium": "#F1D302",
             "high": "#F8333C",
             "start": "#29BF12",
-            "stop": "#D91E36"
+            "stop": "#D91E36",
+            "lap": "#4C5B5C"
         }
     };
 
@@ -308,6 +316,35 @@ const visualizeActivityStream = (flow) => {
                 endAngle: angle + 1 * angleStep * ((d.timeStep > (5 * flow[flow.length - 1].time / flow.length) ? 1 : d.timeStep) + (meetsThreshold ? 12 : 1))
             });
         });
+
+    if (laps === "s") {
+        const rectangleGenerator = angle => {
+            return d3.lineRadial()
+                .angle(d3.scaleLinear().domain([0, 16]).range([angle - Math.PI / 16, angle - Math.PI / 16 + 2 * Math.PI]))
+                .radius(width / (48 * lineThicknessMultiplier))
+                .curve(d3.curveCatmullRomClosed.alpha(0.2))
+                (Array.from(Array(17).keys()).filter(k => [4, 5, 12, 13].includes(k)));
+        };
+
+        lapData = lapData.map(l => {
+            let lapSymbolAngle = startAngle + l * angleStep - Math.PI / 2;
+            const lapSymbolRadius = width * (radiusStep > 0 ? (0.39 - (0.0125 / lineThicknessMultiplier)) : 0.39) - radiusStep * ((lapSymbolAngle - startAngle) / (2 * Math.PI));
+            return {
+                x: lapSymbolRadius * Math.cos(lapSymbolAngle),
+                y: lapSymbolRadius * Math.sin(lapSymbolAngle),
+                shape: rectangleGenerator(lapSymbolAngle)
+            }
+        });
+
+        svg.selectAll("path.lap")
+            .data(lapData)
+            .join("path")
+            .attr("class", "lap")
+            .attr("transform", d => `translate(${width / 2 + d.x}, ${width / 2 + d.y})`)
+            .attr("fill", d => colourMaps[colours]["lap"])
+            .attr("opacity", 1)
+            .attr("d", d => d.shape);
+    }
 
     const triangleGenerator = (angle, radiusDivider) => {
         return d3.lineRadial()
@@ -504,8 +541,15 @@ const visualizeActivityStream = (flow) => {
         .attr("font-family", "Custom Font");
 };
 
-const computeData = (data) => {
+const computeData = (data, laps) => {
     let streams = intensityStreams.filter(s => s in data);
+    
+    let lapSum = 0;
+    laps = laps.map(l => {
+        lapSum += l.elapsed_time;
+        return lapSum;
+    });
+    savedLaps = laps;
 
     streams.forEach(s => {
         let min = Infinity;
@@ -583,11 +627,30 @@ const computeData = (data) => {
 
     savedFlow = flow;
 
-    visualizeActivityStream(flow);
+    visualizeActivityStream(flow, laps);
 };
 
 const downloadSvg = () => {
     convertSVGtoImg();
+};
+
+const fetchActivityLaps = (activity, streams) => {
+    let xhr = new XMLHttpRequest();
+    xhr.open("GET", `https://www.strava.com/api/v3/activities/${activity.id}/laps` +
+        `?keys=[${intensityStreams.join(",") + "," + otherStreams.join(",")}]&key_by_type=true`);
+    xhr.setRequestHeader("Authorization", "Bearer " + accessCode);
+    xhr.send();
+
+    xhr.onreadystatechange = (e) => {
+        if (xhr.readyState === 4) {
+            res = JSON.parse(xhr.responseText);
+            if (Array.isArray(res)) {
+                computeData(streams, res);
+            } else {
+                console.log("Server error: " + res);
+            }
+        }
+    };
 };
 
 const fetchActivityStream = (activity) => {
@@ -608,7 +671,7 @@ const fetchActivityStream = (activity) => {
             if (intensityStreams.map(d => d in res).filter(d => d).length > 0) {
                 savedActivity = activity;
                 savedStream = res;
-                computeData(res);
+                fetchActivityLaps(activity, res);
             } else {
                 console.log("Server error: " + res);
             }
