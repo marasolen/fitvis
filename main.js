@@ -380,13 +380,6 @@ const visualizeActivityStream = (flow, lapData) => {
 
     let symbols = [];
     if (direction === "p" || direction === "c") {
-        const squareGenerator = angle => {
-            return d3.lineRadial()
-                .angle(d3.scaleLinear().domain([0, 4]).range([Math.PI / 4, 2 * Math.PI + Math.PI / 4]))
-                .radius(width / 36)
-                (Array.from(Array(9).keys()));
-        };
-
         const startSymbolAngle = startAngle - (direction === "c" ? Math.PI / 65 : Math.PI / 27) - Math.PI / 2;
         symbols.push(
             {
@@ -399,6 +392,13 @@ const visualizeActivityStream = (flow, lapData) => {
     }
 
     if (directionEnd === "s" || directionEnd === "c") {
+        const squareGenerator = angle => {
+            return d3.lineRadial()
+                .angle(d3.scaleLinear().domain([0, 4]).range([Math.PI / 4, 2 * Math.PI + Math.PI / 4]))
+                .radius(width / 36)
+                (Array.from(Array(9).keys()));
+        };
+
         let stopSymbolAngle = startAngle + flow[flow.length - 1].time * angleStep - Math.PI / 2;
         const stopSymbolRadius = width * (radiusStep > 0 ? 0.375 : 0.39) - radiusStep * ((stopSymbolAngle - startAngle) / (2 * Math.PI));
         stopSymbolAngle += (directionEnd === "c" ? Math.PI / 65 : Math.PI / 27) * (width * 0.39) / stopSymbolRadius;
@@ -423,7 +423,7 @@ const visualizeActivityStream = (flow, lapData) => {
 
         symbols.push(
             {
-                shape: directionEnd === "s" ? squareGenerator(startSymbolAngle) : circleGenerator(0),
+                shape: directionEnd === "s" ? squareGenerator(stopSymbolAngle) : circleGenerator(0),
                 x: stopSymbolRadius * Math.cos(stopSymbolAngle),
                 y: stopSymbolRadius * Math.sin(stopSymbolAngle),
                 colour: directionEnd === "c" ? checkered.url() : colourMaps[colours]["stop"]
