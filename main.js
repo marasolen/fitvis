@@ -8,13 +8,14 @@ let authCode, refreshCode, accessCode, accessCodeExpiryDate;
 
 let page = 1;
 let activities = [];
-let defaultSettings = "s__h__t_n_o_h";
-let settings = "s__h__t_n_o_h";
+const defaultSettings = "s__h__t_n_o_h_n";
+let settings = "s__h__t_n_o_h_n";
 
 let savedActivity;
 let savedStream;
 let savedFlow;
 let savedLaps;
+let savedLapResponse;
 
 const getSetting = (setting) => {
     let value = "";
@@ -28,7 +29,7 @@ const getSetting = (setting) => {
 };
 
 const updateSettings = () => {
-    const newSettings = ["colour_scheme", "metrics", "map", "time", "background", "direction", "circle", "laps"].map(getSetting);
+    const newSettings = ["colour_scheme", "metrics", "map", "time", "background", "direction", "circle", "laps", "direction-end"].map(getSetting);
     settings = newSettings.join("_");
     document.cookie = `settings=${settings}; expires=${dayjs().add(12, "month")}`;
     visualizeActivityStream(savedFlow, savedLaps);
@@ -36,30 +37,40 @@ const updateSettings = () => {
 
 const setupSetting = (setting, selection) => {
     const options = $(`input[name="${setting}"]`);
+    let found = false;
     for (let i = 0; i < options.length; i++) {
         if (selection.includes(options[i].value[0])) {
             options[i].checked = true;
+            found = true;
         }
     }
+    if (!found) {
+        options[0].checked = true;
+        return options[0].value[0];
+    }
+    return selection;
 };
 
 const setupSettings = () => {
     if (settings.split("_").length === 5) {
-        settings += "_n_o_h"
+        settings += "_n"
     }
     if (settings.split("_").length === 6) {
-        settings += "_o_h"
+        settings += "_o"
     }
     if (settings.split("_").length === 7) {
         settings += "_h"
     }
-    let [colours, metrics, map, times, background, direction, circle, laps] = settings.split("_");
+    if (settings.split("_").length === 8) {
+        settings += "_n"
+    }
+    let [colours, metrics, map, times, background, direction, circle, laps, directionEnd] = settings.split("_");
 
-    [colours, map, background, direction, circle, laps].forEach(list => {
+    [colours, map, background, direction, circle, laps, directionEnd].forEach(list => {
         list = list[0];
     });
 
-    [
+    settings = [
         ["colour_scheme", colours],
         ["metrics", metrics], 
         ["map", map], 
@@ -67,8 +78,9 @@ const setupSettings = () => {
         ["background", background],
         ["direction", direction],
         ["circle", circle],
-        ["laps", laps]
-    ].forEach(([setting, selection]) => setupSetting(setting, selection));
+        ["laps", laps],
+        ["direction-end", directionEnd],
+    ].map(([setting, selection]) => setupSetting(setting, selection)).join("_");
 };
 
 const authenticate = () => {
@@ -181,7 +193,7 @@ const kmeans = (data, attributes, saveAttributes) => {
 const visualizeActivityStream = (flow, lapData) => {
     d3.selectAll("#visualization > *").remove();
 
-    const [colours, metrics, map, times, background, direction, circle, laps] = settings.split("_");
+    const [colours, metrics, map, times, background, direction, circle, laps, directionEnd] = settings.split("_");
 
     const meetsThreshold = circle === "t";
 
@@ -193,7 +205,7 @@ const visualizeActivityStream = (flow, lapData) => {
     const start = dayjs(savedActivity.start_date_local).subtract(dayjs().utcOffset(), "minute");
     const startTime = (meetsThreshold ? 60 * start.hour() : 0) + (start.minute() + (start.second() / 60));
     const startAngle = 2 * Math.PI * startTime / (60 * (meetsThreshold ? 12 : 1));
-    let circleDurationThreshold = (meetsThreshold ? 720 : 60) * (1 - (times.length > 0 ? 0.1 : 0) - ("pc".includes(direction) ? 0.1 : 0));
+    let circleDurationThreshold = (meetsThreshold ? 720 : 60) * (1 - (times.length > 0 ? 0.1 : 0) - ("pc".includes(direction) ? 0.05 : 0) - ("sc".includes(directionEnd) ? 0.05 : 0));
     const radiusStep = (flow[flow.length - 1].time / 60) > circleDurationThreshold ? width * 0.05 / lineThicknessMultiplier : 0;
     const svg = d3.select("#visualization")
         .attr("viewBox", `0 0 ${width} ${width}`)
@@ -232,6 +244,7 @@ const visualizeActivityStream = (flow, lapData) => {
         }
     };
 
+    // Background
     if (background === "w") {
         svg.append("rect")
             .attr("width", width)
@@ -241,6 +254,7 @@ const visualizeActivityStream = (flow, lapData) => {
             .attr("fill", "white");
     }
 
+    // Map
     if (map === "s" && "latlng" in flow[0]) {
         const mapX = d => d.latlng[0];
         const mapY = d => d.latlng[1];
@@ -283,6 +297,7 @@ const visualizeActivityStream = (flow, lapData) => {
         dots.push({ start: i, length: d3.min([30, savedActivity.elapsed_time - i]) });
     }
     
+    // Underlying dashes spiral
     svg.selectAll("path.duration")
         .data(dots)
         .join("path")
@@ -300,6 +315,7 @@ const visualizeActivityStream = (flow, lapData) => {
             });
         });
     
+    // Main spiral
     svg.selectAll("path.intensity")
         .data(flow)
         .join("path")
@@ -317,6 +333,7 @@ const visualizeActivityStream = (flow, lapData) => {
             });
         });
 
+    // Lap markers
     if (laps === "s") {
         const rectangleGenerator = angle => {
             return d3.lineRadial()
@@ -346,14 +363,23 @@ const visualizeActivityStream = (flow, lapData) => {
             .attr("d", d => d.shape);
     }
 
+    // Directional markers
     const triangleGenerator = (angle, radiusDivider) => {
         return d3.lineRadial()
             .angle(d3.scaleLinear().domain([0, 3]).range([angle - Math.PI, angle + Math.PI]))
             .radius(width / radiusDivider)
             (Array.from(Array(4).keys()));
     };
-    if (direction === "p" || direction === "c") {
 
+    const circleGenerator = angle => {
+        return d3.lineRadial()
+            .angle(d3.scaleLinear().domain([0, 100]).range([0, 2 * Math.PI]))
+            .radius(width / 48)
+            (Array.from(Array(101).keys()));
+    };
+
+    let symbols = [];
+    if (direction === "p" || direction === "c") {
         const squareGenerator = angle => {
             return d3.lineRadial()
                 .angle(d3.scaleLinear().domain([0, 4]).range([Math.PI / 4, 2 * Math.PI + Math.PI / 4]))
@@ -361,31 +387,21 @@ const visualizeActivityStream = (flow, lapData) => {
                 (Array.from(Array(9).keys()));
         };
 
-        const circleGenerator = angle => {
-            return d3.lineRadial()
-                .angle(d3.scaleLinear().domain([0, 100]).range([0, 2 * Math.PI]))
-                .radius(width / 48)
-                (Array.from(Array(101).keys()));
-        };
-
         const startSymbolAngle = startAngle - (direction === "c" ? Math.PI / 65 : Math.PI / 27) - Math.PI / 2;
-        let stopSymbolAngle = startAngle + flow[flow.length - 1].time * angleStep - Math.PI / 2;
-        const stopSymbolRadius = width * (radiusStep > 0 ? 0.375 : 0.39) - radiusStep * ((stopSymbolAngle - startAngle) / (2 * Math.PI));
-        stopSymbolAngle += (direction === "c" ? Math.PI / 65 : Math.PI / 27) * (width * 0.39) / stopSymbolRadius;
-        const symbols = [
+        symbols.push(
             {
                 shape: direction === "p" ? triangleGenerator(startSymbolAngle, 36) : circleGenerator(0),
                 x: width * 0.39 * Math.cos(startSymbolAngle),
                 y: width * 0.39 * Math.sin(startSymbolAngle),
-                colour: "start"
-            },
-            {
-                shape: direction === "p" ? squareGenerator(startSymbolAngle) : circleGenerator(0),
-                x: stopSymbolRadius * Math.cos(stopSymbolAngle),
-                y: stopSymbolRadius * Math.sin(stopSymbolAngle),
-                colour: "stop"
+                colour: colourMaps[colours]["start"]
             }
-        ];
+        );
+    }
+
+    if (directionEnd === "s" || directionEnd === "c") {
+        let stopSymbolAngle = startAngle + flow[flow.length - 1].time * angleStep - Math.PI / 2;
+        const stopSymbolRadius = width * (radiusStep > 0 ? 0.375 : 0.39) - radiusStep * ((stopSymbolAngle - startAngle) / (2 * Math.PI));
+        stopSymbolAngle += (directionEnd === "c" ? Math.PI / 65 : Math.PI / 27) * (width * 0.39) / stopSymbolRadius;
 
         const checkered = textures.paths()
             .d(s =>
@@ -405,15 +421,26 @@ const visualizeActivityStream = (flow, lapData) => {
 
         svg.call(checkered);
 
-        svg.selectAll("path.symbol")
-            .data(symbols)
-            .join("path")
-            .attr("class", "symbol")
-            .attr("transform", d => `translate(${width / 2 + d.x}, ${width / 2 + d.y})`)
-            .attr("fill", d => direction === "c" && d.colour === "stop" ? checkered.url() : colourMaps[colours][d.colour])
-            .attr("opacity", 1)
-            .attr("d", d => d.shape);
-    } else if (direction === "a") {
+        symbols.push(
+            {
+                shape: directionEnd === "s" ? squareGenerator(startSymbolAngle) : circleGenerator(0),
+                x: stopSymbolRadius * Math.cos(stopSymbolAngle),
+                y: stopSymbolRadius * Math.sin(stopSymbolAngle),
+                colour: directionEnd === "c" ? checkered.url() : colourMaps[colours]["stop"]
+            }
+        );
+    }
+
+    svg.selectAll("path.symbol")
+        .data(symbols)
+        .join("path")
+        .attr("class", "symbol")
+        .attr("transform", d => `translate(${width / 2 + d.x}, ${width / 2 + d.y})`)
+        .attr("fill", d => d.colour)
+        .attr("opacity", 1)
+        .attr("d", d => d.shape);
+    
+    if (direction === "a") {
         svg.selectAll("path.direction-arrow")
             .data([{ start: startAngle, end: startAngle + Math.PI / 16 }])
             .join("path")
@@ -437,6 +464,7 @@ const visualizeActivityStream = (flow, lapData) => {
             .attr("d", d => triangleGenerator(d.end, 60));
     }
 
+    // Start and end times
     if (times.length > 0) {
         let timeLabels = [];
         const defs = svg.append("defs");
@@ -458,7 +486,7 @@ const visualizeActivityStream = (flow, lapData) => {
                 angle: angle,
                 radius: width * (radiusStep > 0 ? 0.375 : 0.39) - radiusStep * ((angle - startAngle) / (2 * Math.PI))
             };
-            timeLabel.angle += (Math.PI / ("pc".includes(direction) ? 12 : 24)) * (width * 0.39) / timeLabel.radius;
+            timeLabel.angle += (Math.PI / ("sc".includes(directionEnd) ? 12 : 24)) * (width * 0.39) / timeLabel.radius;
 
             timeLabels.push(timeLabel);
         }
@@ -474,6 +502,7 @@ const visualizeActivityStream = (flow, lapData) => {
             .text(d => d.label);
     }
 
+    // Metrics
     if (metrics.length > 0) {
         let chosenMetrics = [
             {
@@ -645,6 +674,7 @@ const fetchActivityLaps = (activity, streams) => {
         if (xhr.readyState === 4) {
             res = JSON.parse(xhr.responseText);
             if (Array.isArray(res)) {
+                savedLapResponse = res;
                 computeData(streams, res);
             } else {
                 console.log("Server error: " + res);
