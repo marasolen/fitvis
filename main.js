@@ -17,6 +17,34 @@ let savedFlow;
 let savedLaps;
 let savedLapResponse;
 
+let imageBase64 = null;
+let imageSize;
+
+const imageUploaded = () => {
+    const file = document.querySelector(
+        'input[id=photo-upload]')['files'][0];
+
+    const reader = new FileReader();
+    
+
+    reader.onload = function (file) {
+        base64String = reader.result.replace("data:", "")
+            .replace(/^.+,/, "");
+
+        imageBase64 = base64String;
+
+        const image = new Image();
+        image.src = file.target.result;
+
+        image.onload = function() {
+            imageSize = { width: this.width, height: this.height }
+            
+            visualizeActivityStream(savedFlow, savedLaps);
+        };
+    };
+    reader.readAsDataURL(file);
+};
+
 const getSetting = (setting) => {
     let value = "";
     const options = $(`input[name="${setting}"]`);
@@ -284,26 +312,14 @@ const visualizeActivityStream = async (flow, lapData) => {
                     (d);
             })
             .attr("transform", `translate(${width / 3}, ${ 2 * width / 3}) rotate(-90)`);
-    } else if (media === "p" && savedActivity.photos.count > 0) {
+    } else if (media === "p" && imageBase64 !== null) {
         const photoWidth = 2 / 5 * width;
         const gap = (width - photoWidth) / 2;
 
-        function getImageDimensionsNoDisplay(url) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => {
-                    resolve({ width: img.width, height: img.height });
-                };
-                img.onerror = reject;
-                img.src = url;
-            });
-        }
-
         const url = d3.max(Object.keys(savedActivity.photos.primary.urls).map(url => +url)) + "";
-        const size = await getImageDimensionsNoDisplay(savedActivity.photos.primary.urls[url]);
-        const xOffset = size.width > size.height ? (size.width - size.height) / 2 : 0;
-        const yOffset = size.height > size.width ? (size.height - size.width) / 2 : 0;
-        const ratio = xOffset > 0 ? photoWidth / size.height : photoWidth / size.width; 
+        const xOffset = imageSize.width > imageSize.height ? (imageSize.width - imageSize.height) / 2 : 0;
+        const yOffset = imageSize.height > imageSize.width ? (imageSize.height - imageSize.width) / 2 : 0;
+        const ratio = xOffset > 0 ? photoWidth / imageSize.height : photoWidth / imageSize.width; 
 
         const photoArea = svg.append("g")
             .attr("transform", `translate(${gap}, ${gap})`);
@@ -317,27 +333,14 @@ const visualizeActivityStream = async (flow, lapData) => {
             .attr('cy', photoWidth / 2);
 
         photoArea.attr('clip-path', 'url(#chart-mask)');
-
-        const image = new Image();
-        image.crossOrigin = "anonymous";  // This enables CORS
-        image.src = savedActivity.photos.primary.urls[url];
-        console.log("here");
-
-        image.onload = function() {
-            const $canvas = document.createElement('canvas');
-            $canvas.width = picSize;
-            $canvas.height = picSize;
-            $canvas.getContext('2d').drawImage(image, 0, 0, size.width, size.height);
-            console.log("here");
-            
-            photoArea.append("image")
-                .attr("x", -xOffset * ratio)
-                .attr("y", -yOffset * ratio)
-                .attr("width", size.width * ratio)
-                .attr("height", size.height * ratio)
-                .attr("xlink:href", $canvas.toDataURL(`image/png`, 1))
-                .attr("opacity", metrics.length > 0 ? 0.35 : 1);
-        };
+        
+        photoArea.append("image")
+            .attr("x", -xOffset * ratio)
+            .attr("y", -yOffset * ratio)
+            .attr("width", imageSize.width * ratio)
+            .attr("height", imageSize.height * ratio)
+            .attr("xlink:href", "data:image/svg+xml;base64," + imageBase64)
+            .attr("opacity", metrics.length > 0 ? 0.35 : 1);
     }
 
     const thicknessMap = {
@@ -783,6 +786,8 @@ const fetchActivityDetails = (activity) => {
 };
 
 const populateActivities = () => {
+    imageBase64 = null;
+
     d3.select("#activity-container").style("display", "block");
     d3.select("#visualization-container").style("display", "none");
     d3.select("#activities > *").remove();
