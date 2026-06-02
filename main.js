@@ -35,7 +35,7 @@ const updateSettings = () => {
     visualizeActivityStream(savedFlow, savedLaps);
 };
 
-const setupSetting = (setting, selection) => {
+const setupSetting = (setting, selection, force) => {
     const options = $(`input[name="${setting}"]`);
     let found = false;
     for (let i = 0; i < options.length; i++) {
@@ -44,7 +44,7 @@ const setupSetting = (setting, selection) => {
             found = true;
         }
     }
-    if (!found) {
+    if (!found && force) {
         options[0].checked = true;
         return options[0].value[0];
     }
@@ -71,16 +71,16 @@ const setupSettings = () => {
     });
 
     settings = [
-        ["colour_scheme", colours],
-        ["metrics", metrics], 
-        ["map", map], 
-        ["time", times], 
-        ["background", background],
-        ["direction", direction],
-        ["circle", circle],
-        ["laps", laps],
-        ["direction-end", directionEnd],
-    ].map(([setting, selection]) => setupSetting(setting, selection)).join("_");
+        ["colour_scheme", colours, true],
+        ["metrics", metrics, false], 
+        ["map", map, true], 
+        ["time", times, false], 
+        ["background", background, true],
+        ["direction", direction, false],
+        ["circle", circle, true],
+        ["laps", laps, true],
+        ["direction-end", directionEnd, false],
+    ].map(([setting, selection, force]) => setupSetting(setting, selection, force)).join("_");
 };
 
 const authenticate = () => {
@@ -190,10 +190,10 @@ const kmeans = (data, attributes, saveAttributes) => {
     return clusters;
 };
 
-const visualizeActivityStream = (flow, lapData) => {
+const visualizeActivityStream = async (flow, lapData) => {
     d3.selectAll("#visualization > *").remove();
 
-    const [colours, metrics, map, times, background, direction, circle, laps, directionEnd] = settings.split("_");
+    const [colours, metrics, media, times, background, direction, circle, laps, directionEnd] = settings.split("_");
 
     const meetsThreshold = circle === "t";
 
@@ -255,7 +255,7 @@ const visualizeActivityStream = (flow, lapData) => {
     }
 
     // Map
-    if (map === "s" && "latlng" in flow[0]) {
+    if (media === "s" && "latlng" in flow[0]) {
         const mapX = d => d.latlng[0];
         const mapY = d => d.latlng[1];
 
@@ -284,6 +284,60 @@ const visualizeActivityStream = (flow, lapData) => {
                     (d);
             })
             .attr("transform", `translate(${width / 3}, ${ 2 * width / 3}) rotate(-90)`);
+    } else if (media === "p" && savedActivity.photos.count > 0) {
+        const photoWidth = 2 / 5 * width;
+        const gap = (width - photoWidth) / 2;
+
+        function getImageDimensionsNoDisplay(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    resolve({ width: img.width, height: img.height });
+                };
+                img.onerror = reject;
+                img.src = url;
+            });
+        }
+
+        const url = d3.max(Object.keys(savedActivity.photos.primary.urls).map(url => +url)) + "";
+        const size = await getImageDimensionsNoDisplay(savedActivity.photos.primary.urls[url]);
+        const xOffset = size.width > size.height ? (size.width - size.height) / 2 : 0;
+        const yOffset = size.height > size.width ? (size.height - size.width) / 2 : 0;
+        const ratio = xOffset > 0 ? photoWidth / size.height : photoWidth / size.width; 
+
+        const photoArea = svg.append("g")
+            .attr("transform", `translate(${gap}, ${gap})`);
+
+        photoArea.append('defs')
+            .append('clipPath')
+            .attr('id', 'chart-mask')
+            .append('circle')
+            .attr('r', photoWidth / 2)
+            .attr('cx', photoWidth / 2)
+            .attr('cy', photoWidth / 2);
+
+        photoArea.attr('clip-path', 'url(#chart-mask)');
+
+        const image = new Image();
+        image.crossOrigin = "anonymous";  // This enables CORS
+        image.src = savedActivity.photos.primary.urls[url];
+        console.log("here");
+
+        image.onload = function() {
+            const $canvas = document.createElement('canvas');
+            $canvas.width = picSize;
+            $canvas.height = picSize;
+            $canvas.getContext('2d').drawImage(image, 0, 0, size.width, size.height);
+            console.log("here");
+            
+            photoArea.append("image")
+                .attr("x", -xOffset * ratio)
+                .attr("y", -yOffset * ratio)
+                .attr("width", size.width * ratio)
+                .attr("height", size.height * ratio)
+                .attr("xlink:href", $canvas.toDataURL(`image/png`, 1))
+                .attr("opacity", metrics.length > 0 ? 0.35 : 1);
+        };
     }
 
     const thicknessMap = {
@@ -683,12 +737,7 @@ const fetchActivityLaps = (activity, streams) => {
     };
 };
 
-const fetchActivityStream = (activity) => {
-    d3.select("#activity-container").style("display", "none");
-    d3.select("#visualization-container").style("display", "block");
-    
-    d3.selectAll("#visualization > *").remove();
-
+const fetchActivityStreams = (activity) => {
     let xhr = new XMLHttpRequest();
     xhr.open("GET", `https://www.strava.com/api/v3/activities/${activity.id}/streams` +
         `?keys=[${intensityStreams.join(",") + "," + otherStreams.join(",")}]&key_by_type=true`);
@@ -699,9 +748,33 @@ const fetchActivityStream = (activity) => {
         if (xhr.readyState === 4) {
             res = JSON.parse(xhr.responseText);
             if (intensityStreams.map(d => d in res).filter(d => d).length > 0) {
-                savedActivity = activity;
                 savedStream = res;
                 fetchActivityLaps(activity, res);
+            } else {
+                console.log("Server error: " + res);
+            }
+        }
+    };
+};
+
+const fetchActivityDetails = (activity) => {
+    d3.select("#activity-container").style("display", "none");
+    d3.select("#visualization-container").style("display", "block");
+    
+    d3.selectAll("#visualization > *").remove();
+
+    let xhr = new XMLHttpRequest();
+    xhr.open("GET", `https://www.strava.com/api/v3/activities/${activity.id}`);
+    xhr.setRequestHeader("Authorization", "Bearer " + accessCode);
+    xhr.send();
+
+    xhr.onreadystatechange = (e) => {
+        if (xhr.readyState === 4) {
+            res = JSON.parse(xhr.responseText);
+            if ("id" in res) {
+                console.log(res);
+                savedActivity = res;
+                fetchActivityStreams(savedActivity);
             } else {
                 console.log("Server error: " + res);
             }
@@ -717,7 +790,7 @@ const populateActivities = () => {
         .data(activities)
         .join("div")
         .attr("class", "button")
-        .on("click", (_, d) => fetchActivityStream(d));
+        .on("click", (_, d) => fetchActivityDetails(d));
 
     buttons.selectAll("p.sport")
         .data(d => [d])
