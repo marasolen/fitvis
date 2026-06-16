@@ -119,6 +119,7 @@ p.date {
 .form div {
     padding-top: 1%;
     padding-bottom: 5%;
+    margin-bottom: 5%;
 }
 
 @media screen and (max-width: 2000px) {
