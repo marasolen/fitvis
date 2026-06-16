@@ -316,7 +316,6 @@ const visualizeActivityStream = async (flow, lapData) => {
         const photoWidth = 2 / 5 * width;
         const gap = (width - photoWidth) / 2;
 
-        const url = d3.max(Object.keys(savedActivity.photos.primary.urls).map(url => +url)) + "";
         const xOffset = imageSize.width > imageSize.height ? (imageSize.width - imageSize.height) / 2 : 0;
         const yOffset = imageSize.height > imageSize.width ? (imageSize.height - imageSize.width) / 2 : 0;
         const ratio = xOffset > 0 ? photoWidth / imageSize.height : photoWidth / imageSize.width; 

@@ -26,152 +26,153 @@
         </div>
 
         <div id="visualization-container" class="visualization-container column" style="display: none">
-            <div class="button" id="back-button"><p class="name" style="padding-top: 1%; padding-bottom: 1%;">Return to activities</p></div>
-            <div class="button" id="download-button"><p class="name" style="padding-top: 1%; padding-bottom: 1%;">Download as PNG</p></div>
+            <div class="button" id="back-button"><p class="name" style="padding-top: 1%; padding-bottom: 1%; font-weight: bold; margin-bottom: 4%;">Return to activities</p></div>
             <div class="form">
                 <p>Colour scheme</p>
-                <div>
-                    <input type="radio" id="strava" name="colour_scheme" value="strava">
+                <div class="input-container">
+                    <input type="radio" class="radio" id="strava" name="colour_scheme" value="strava">
                     <label for="strava">Strava</label><br>
                 </div>
-                <div>
-                    <input type="radio" id="greyscale" name="colour_scheme" value="greyscale">
+                <div class="input-container">
+                    <input type="radio" class="radio" id="greyscale" name="colour_scheme" value="greyscale">
                     <label for="greyscale">Greyscale</label><br>
                 </div>
                 
                 <div></div>
-                <div>
-                    <input type="radio" id="traffic" name="colour_scheme" value="traffic">
+                <div class="input-container">
+                    <input type="radio" class="radio" id="traffic" name="colour_scheme" value="traffic">
                     <label for="traffic">Traffic</label><br>
                 </div>
                 <div></div>
 
                 <p>Details (if available)</p>
-                <div>
-                    <input type="checkbox" id="name" name="metrics" value="name">
+                <div class="input-container">
+                    <input type="checkbox" class="checkbox" id="name" name="metrics" value="name">
                     <label for="name">Activity name</label><br>
                 </div>
-                <div>
-                    <input type="checkbox" id="sport" name="metrics" value="sport">
+                <div class="input-container">
+                    <input type="checkbox" class="checkbox" id="sport" name="metrics" value="sport">
                     <label for="sport">Sport type</label><br>
                 </div>
                 
                 <div></div>
-                <div>
-                    <input type="checkbox" id="distance" name="metrics" value="distance">
+                <div class="input-container">
+                    <input type="checkbox" class="checkbox" id="distance" name="metrics" value="distance">
                     <label for="distance">Distance</label><br>
                 </div>
-                <div>
-                    <input type="checkbox" id="time" name="metrics" value="time">
-                    <label for="time">Moving Time</label><br>
+                <div class="input-container">
+                    <input type="checkbox" class="checkbox" id="time" name="metrics" value="time">
+                    <label for="time">Moving time</label><br>
                 </div>
                 
                 <div></div>
-                <div>
-                    <input type="checkbox" id="pace" name="metrics" value="pace">
+                <div class="input-container">
+                    <input type="checkbox" class="checkbox" id="pace" name="metrics" value="pace">
                     <label for="pace">Average speed</label><br>
                 </div>
-                <div>
-                    <input type="checkbox" id="heartrate" name="metrics" value="heartrate">
+                <div class="input-container">
+                    <input type="checkbox" class="checkbox" id="heartrate" name="metrics" value="heartrate">
                     <label for="heartrate">Average heartrate</label><br>
                 </div>
 
                 <p>Map/Media (if available)</p>
-                <div>
-                    <input type="radio" id="hide" name="map" value="hide">
+                <div class="input-container">
+                    <input type="radio" class="radio" id="hide" name="map" value="hide">
                     <label for="hide">No media</label><br>
                 </div>
-                <div>
-                    <input type="radio" id="show" name="map" value="show">
+                <div class="input-container">
+                    <input type="radio" class="radio" id="show" name="map" value="show">
                     <label for="show">Show map</label><br>
                 </div>
                 
                 <div></div>
-                <div>
-                    <input type="radio" id="photo" name="map" value="photo">
+                <div class="input-container">
+                    <input type="radio" class="radio" id="photo" name="map" value="photo">
                     <label for="photo">Show photo</label><br>
                 </div>
-                <div>
+                <div class="input-container">
                     <input type="file" id="photo-upload" name="photo-upload" value="photo-upload" onchange="imageUploaded()" accept="image/png, image/jpeg">
+                    <label for="photo-upload" id="photo-upload-label" style="font-style: italic;">Choose a photo</label><br>
                 </div>
                 
                 <p>Lap markers</p>
-                <div>
-                    <input type="radio" id="hide-laps" name="laps" value="hide-laps">
+                <div class="input-container">
+                    <input type="radio" class="radio" id="hide-laps" name="laps" value="hide-laps">
                     <label for="hide-laps">Hide laps</label><br>
                 </div>
-                <div>
-                    <input type="radio" id="show-laps" name="laps" value="show-laps">
+                <div class="input-container">
+                    <input type="radio" class="radio" id="show-laps" name="laps" value="show-laps">
                     <label for="show-laps">Show laps</label><br>
                 </div>
                 
                 <p>Start/end times</p>
-                <div>
-                    <input type="checkbox" id="start" name="time" value="start">
+                <div class="input-container">
+                    <input type="checkbox" class="checkbox" id="start" name="time" value="start">
                     <label for="start">Start time</label><br>
                 </div>
-                <div>
-                    <input type="checkbox" id="end" name="time" value="end">
+                <div class="input-container">
+                    <input type="checkbox" class="checkbox" id="end" name="time" value="end">
                     <label for="end">End time</label><br>
                 </div>
                 
                 <p>Start marker</p>
-                <div>
-                    <input type="radio" id="none" name="direction" value="none">
-                    <label for="none">None</label><br>
+                <div class="input-container">
+                    <input type="radio" class="radio" id="none-start" name="direction" value="none-start">
+                    <label for="none-start">None</label><br>
                 </div>
-                <div>
-                    <input type="radio" id="play" name="direction" value="play">
-                    <label for="play">Play</label><br>
+                <div class="input-container">
+                    <input type="radio" class="radio" id="play-start" name="direction" value="play-start">
+                    <label for="play-start">Play</label><br>
                 </div>
 
                 <div></div>
-                <div>
-                    <input type="radio" id="circle" name="direction" value="circle">
-                    <label for="circle">Circle</label><br>
+                <div class="input-container">
+                    <input type="radio" class="radio" id="circle-start" name="direction" value="circle-start">
+                    <label for="circle-start">Circle</label><br>
                 </div>
-                <div>
-                    <input type="radio" id="arrow" name="direction" value="arrow">
-                    <label for="arrow">Arrow</label><br>
+                <div class="input-container">
+                    <input type="radio" class="radio" id="arrow-start" name="direction" value="arrow-start">
+                    <label for="arrow-start">Arrow</label><br>
                 </div>
                 
                 <p>End marker</p>
-                <div>
-                    <input type="radio" id="none" name="direction-end" value="none">
-                    <label for="none">None</label><br>
+                <div class="input-container">
+                    <input type="radio" class="radio" id="none-end" name="direction-end" value="none-end">
+                    <label for="none-end">None</label><br>
                 </div>
-                <div>
-                    <input type="radio" id="stop" name="direction-end" value="stop">
-                    <label for="stop">Stop</label><br>
+                <div class="input-container">
+                    <input type="radio" class="radio" id="stop-end" name="direction-end" value="stop-end">
+                    <label for="stop-end">Stop</label><br>
                 </div>
 
                 <div></div>
-                <div>
-                    <input type="radio" id="circle" name="direction-end" value="circle">
-                    <label for="circle">Circle</label><br>
+                <div class="input-container">
+                    <input type="radio" class="radio" id="circle-end" name="direction-end" value="circle-end">
+                    <label for="circle-end">Circle</label><br>
                 </div>
                 <div></div>
                 
                 <p>Full circle time</p>
-                <div>
-                    <input type="radio" id="onehour" name="circle" value="onehour">
+                <div class="input-container">
+                    <input type="radio" class="radio" id="onehour" name="circle" value="onehour">
                     <label for="onehour">1 hour</label><br>
                 </div>
-                <div>
-                    <input type="radio" id="twelvehours" name="circle" value="twelvehours">
+                <div class="input-container">
+                    <input type="radio" class="radio" id="twelvehours" name="circle" value="twelvehours">
                     <label for="twelvehours">12 hours</label><br>
                 </div>
                 
                 <p>Background</p>
-                <div>
-                    <input type="radio" id="transparent" name="background" value="transparent">
+                <div class="input-container">
+                    <input type="radio" class="radio" id="transparent" name="background" value="transparent">
                     <label for="transparent">Transparent</label><br>
                 </div>
-                <div>
-                    <input type="radio" id="white" name="background" value="white">
+                <div class="input-container">
+                    <input type="radio" class="radio" id="white" name="background" value="white">
                     <label for="white">White</label><br>
                 </div>
             </div>
+            <div class="button" id="download-button"><p class="name" style="padding-top: 1%; padding-bottom: 1%; font-weight: bold; margin-top: 4%;">Download as PNG</p></div>
             <svg id="visualization" class="visualization"></svg>
         </div>
         

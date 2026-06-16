@@ -3,6 +3,7 @@ body {
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
+    font-size: x-large;
     color: #000000;
     background-color: #f9f8f7;
 }
@@ -39,6 +40,45 @@ p {
     padding-bottom: 1%;
 }
 
+div.input-container label {
+    padding: 10px;
+    border-radius: 10px;
+}
+
+div.input-container label:hover {
+    background-color: #fcccb8;
+}
+
+div.input-container input:checked ~ label {
+    background-color: #FC4C02;
+    color: white;
+    font-weight: bold;
+}
+
+input.radio {
+    display: none;
+}
+
+input.checkbox {
+    display: none;
+}
+
+div.input-container #photo-upload {
+    padding: 10px;
+}
+
+#photo-upload-label {
+    background-color: #eeeeee;
+}
+
+#photo-upload-label:hover {
+    background-color: #dddddd;
+}
+
+#photo-upload {
+    display: none;
+}
+
 div.button {
     width: 90%;
     margin-left: 5%;
@@ -52,18 +92,18 @@ div.button:hover {
 }
 
 p.sport {
-    font-size: small;
+    font-size: larger;
     color: #666666;
 }
 
 p.name {
-    font-size: large;
+    font-size: xx-large;
     padding-top: 0;
     padding-bottom: 0;
 }
 
 p.date {
-    font-size: small;
+    font-size: larger;
 }
 
 .form {
@@ -96,7 +136,7 @@ p.date {
 
 @media screen and (orientation: portrait) {
     .form {
-        font-size: large;
+        font-size: xx-large;
     }
 }
 
