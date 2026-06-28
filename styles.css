@@ -43,6 +43,7 @@ p {
 div.input-container label {
     padding: 10px;
     border-radius: 10px;
+    background-color: #eeeeee;
 }
 
 div.input-container label:hover {
@@ -68,11 +69,11 @@ div.input-container #photo-upload {
 }
 
 #photo-upload-label {
-    background-color: #eeeeee;
+    background-color: #dddddd;
 }
 
 #photo-upload-label:hover {
-    background-color: #dddddd;
+    background-color: #cccccc;
 }
 
 #photo-upload {

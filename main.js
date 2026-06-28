@@ -395,7 +395,7 @@ const visualizeActivityStream = async (flow, lapData) => {
             return d3.lineRadial()
                 .angle(d3.scaleLinear().domain([0, 16]).range([angle - Math.PI / 16, angle - Math.PI / 16 + 2 * Math.PI]))
                 .radius(width / (48 * lineThicknessMultiplier))
-                .curve(d3.curveCatmullRomClosed.alpha(0.2))
+                //.curve(d3.curveCatmullRomClosed.alpha(0.2))
                 (Array.from(Array(17).keys()).filter(k => [4, 5, 12, 13].includes(k)));
         };
 
@@ -423,20 +423,20 @@ const visualizeActivityStream = async (flow, lapData) => {
     const triangleGenerator = (angle, radiusDivider) => {
         return d3.lineRadial()
             .angle(d3.scaleLinear().domain([0, 3]).range([angle - Math.PI, angle + Math.PI]))
-            .radius(width / radiusDivider)
+            .radius(radiusStep === 0 ? width / 45 : 0.5 * radiusStep)
             (Array.from(Array(4).keys()));
     };
 
     const circleGenerator = angle => {
         return d3.lineRadial()
             .angle(d3.scaleLinear().domain([0, 100]).range([0, 2 * Math.PI]))
-            .radius(width / 48)
+            .radius(radiusStep === 0 ? width / 60 : 0.5 * radiusStep)
             (Array.from(Array(101).keys()));
     };
 
     let symbols = [];
     if (direction === "p" || direction === "c") {
-        const startSymbolAngle = startAngle - (direction === "c" ? Math.PI / 65 : Math.PI / 27) - Math.PI / 2;
+        const startSymbolAngle = startAngle - (Math.PI / 65) - Math.PI / 2;
         symbols.push(
             {
                 shape: direction === "p" ? triangleGenerator(startSymbolAngle, 36) : circleGenerator(0),
@@ -451,13 +451,13 @@ const visualizeActivityStream = async (flow, lapData) => {
         const squareGenerator = angle => {
             return d3.lineRadial()
                 .angle(d3.scaleLinear().domain([0, 4]).range([Math.PI / 4, 2 * Math.PI + Math.PI / 4]))
-                .radius(width / 36)
+                .radius(radiusStep === 0 ? width / 45 : 0.625 * radiusStep)
                 (Array.from(Array(9).keys()));
         };
 
         let stopSymbolAngle = startAngle + flow[flow.length - 1].time * angleStep - Math.PI / 2;
-        const stopSymbolRadius = width * (radiusStep > 0 ? 0.375 : 0.39) - radiusStep * ((stopSymbolAngle - startAngle) / (2 * Math.PI));
-        stopSymbolAngle += (directionEnd === "c" ? Math.PI / 65 : Math.PI / 27) * (width * 0.39) / stopSymbolRadius;
+        const stopSymbolRadius = width * (radiusStep > 0 ? 0.38 : 0.39) - radiusStep * ((stopSymbolAngle - startAngle) / (2 * Math.PI));
+        stopSymbolAngle += (Math.PI / 65) * (width * 0.39) / stopSymbolRadius;
 
         const checkered = textures.paths()
             .d(s =>
