@@ -34,11 +34,27 @@ const convertSVGtoImg = async () => {
 
     const dataURL = await getImageURL($svg, svgURL, { format: "png", quality: 1 })
 
-    const a = document.createElement("a");
-    a.href = dataURL;
-    a.download = "activity-intensity.png";
-    document.body.appendChild(a);
-    a.click();
-    URL.revokeObjectURL(dataURL);
-    document.body.removeChild(a);
+    if (iOS()) {
+        window.open(dataURL, "_self");
+    } else {
+        const a = document.createElement("a");
+        a.href = dataURL;
+        a.download = "activity-intensity.png";
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(dataURL);
+        document.body.removeChild(a);
+    }
 };
+
+const iOS = () => {
+    return [
+        'iPad Simulator',
+        'iPhone Simulator',
+        'iPod Simulator',
+        'iPad',
+        'iPhone',
+        'iPod'
+    ].includes(navigator.platform)
+    || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+}
