@@ -338,7 +338,7 @@ const visualizeActivityStream = async (flow, lapData) => {
             .attr("y", -yOffset * ratio)
             .attr("width", imageSize.width * ratio)
             .attr("height", imageSize.height * ratio)
-            .attr("xlink:href", "data:image/svg+xml;base64," + imageBase64)
+            .attr("xlink:href", "data:image/jpeg;base64," + imageBase64)
             .attr("opacity", metrics.length > 0 ? 0.35 : 1);
     }
 
