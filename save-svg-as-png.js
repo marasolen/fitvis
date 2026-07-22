@@ -34,7 +34,7 @@ const convertSVGtoImg = async () => {
 
     const dataURL = await getImageURL($svg, svgURL, { format: "png", quality: 1 })
 
-    if (mobileCheck()) {
+    if (false) {
         window.open(dataURL, "_self");
     } else {
         const a = document.createElement("a");
